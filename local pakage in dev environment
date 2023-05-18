@@ -1,6 +1,6 @@
 create or replace package PKG_BTG_WSR_DOWNLOAD is
 
-  PROCEDURE SP_WSR_TOP_PANEL(I_EMP_ID      IN NUMBER,
+  PROCEDURE SP_WSR_TOP_PANEL(I_EMP_ID      IN VARCHAR2,
                              I_CORP_ID     IN NUMBER,
                              I_BU_ID       IN NUMBER,
                              I_ISU_ID      IN NUMBER,
