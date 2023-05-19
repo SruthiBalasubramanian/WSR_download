@@ -1,6 +1,6 @@
 create or replace package PKG_BTG_WSR_DOWNLOAD is
 
-  PROCEDURE SP_WSR_TOP_PANEL(I_EMP_ID      IN VARCHAR2,
+  PROCEDURE SP_WSR_TOP_PANEL(I_EMP_ID      IN NUMBER,
                              I_CORP_ID     IN NUMBER,
                              I_BU_ID       IN NUMBER,
                              I_ISU_ID      IN NUMBER,
@@ -32,8 +32,7 @@ create or replace package PKG_BTG_WSR_DOWNLOAD is
                                    O_CUR_P_GRP   OUT SYS_REFCURSOR,
                                    O_CUR_ROLE    OUT SYS_REFCURSOR,
                                    O_CUR_STAGE   OUT SYS_REFCURSOR,
-                                   O_CUR_TYPE    OUT SYS_REFCURSOR
-                                   );
+                                   O_CUR_TYPE    OUT SYS_REFCURSOR);
 
 
 PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
@@ -186,16 +185,20 @@ procedure SP_UPLOAD_STATUS_MAIL_BTG(I_EMP_ID  IN NUMBER,
                             I_SUB_ISU       IN VARCHAR2,
                             I_ACC             IN VARCHAR2,
                             I_DATE          IN VARCHAR2,
-                            O_MSG           OUT VARCHAR2) ;                                                           
-PROCEDURE SP_HC_STATUS_FRZ_UNFRZ(I_LOGGED_EMP_ID   IN NUMBER,
+                            O_MSG           OUT VARCHAR2) ;     
+                            
+  PROCEDURE SP_HC_STATUS_FRZ_UNFRZ(I_LOGGED_EMP_ID   IN NUMBER,
                                 I_COORPORATE  IN NUMBER,
                                 I_BU    IN NUMBER,
                                 I_ISU  IN VARCHAR2,
                                 I_CLUS IN VARCHAR2,
                                 I_ACC_ID   IN VARCHAR2,
                                 I_DATE   IN VARCHAR2,
-                                O_MSG      OUT VARCHAR2);   
- PROCEDURE SP_WEEKLY_TEMPLATE_HC(I_EMP_ID        IN NUMBER,
+                                O_MSG      OUT VARCHAR2);                          
+                                                             
+ PROCEDURE SP_WEEKLY_SCHEDULER_FREEZE;      
+   
+   PROCEDURE SP_WEEKLY_TEMPLATE_HC(I_EMP_ID        IN NUMBER,
                             I_CORP_ID       IN NUMBER,
                             I_BG_ID         IN VARCHAR2,
                             I_ISU_ID        IN VARCHAR2,
@@ -212,7 +215,20 @@ PROCEDURE SP_HC_STATUS_FRZ_UNFRZ(I_LOGGED_EMP_ID   IN NUMBER,
                             O_MSG           OUT VARCHAR2, --==/ success / Failure Msg
                             O_NO_OF_INDEX   OUT NUMBER,
                             O_TCV_COL OUT VARCHAR2);      
- PROCEDURE SP_WEEKLY_REPORT_HC(I_EMP_ID        IN NUMBER,
+                            
+                            
+  PROCEDURE SP_WKLY_MONTHLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
+                                                     I_COORPORATE    IN VARCHAR2,
+                                                     I_BU            IN VARCHAR2,
+                                                     I_ISU           IN NUMBER,
+                                                     I_CLUS_ID       IN NUMBER,
+                                                     I_ACC           IN NUMBER,
+                                                     I_DATE          IN VARCHAR2,
+                                                     O_HEADER        OUT SYS_REFCURSOR,
+                                                     O_DATA          OUT SYS_REFCURSOR,
+                                                     O_VAR_DATA      OUT VARCHAR2);   
+  
+  PROCEDURE SP_WEEKLY_REPORT_HC(I_EMP_ID        IN NUMBER,
                                 I_CORP_ID       IN NUMBER,
                                 I_BG_ID         IN VARCHAR2,
                                 I_ISU_ID        IN VARCHAR2,
@@ -228,7 +244,9 @@ PROCEDURE SP_HC_STATUS_FRZ_UNFRZ(I_LOGGED_EMP_ID   IN NUMBER,
                                 O_CUR_VAL       OUT SYS_REFCURSOR, --==// Values Cursor
                                 O_MSG           OUT VARCHAR2, --==/ success / Failure Msg
                                 O_NO_OF_INDEX   OUT NUMBER,
-                                O_TCV_COL       OUT VARCHAR2);  
+                                O_TCV_COL       OUT VARCHAR2);     
+                                
+  procedure sp_iou (O_IOU OUT SYS_REFCURSOR) ;                                                                                                                                                                          
 
 end PKG_BTG_WSR_DOWNLOAD;
 /
@@ -1554,6 +1572,8 @@ PROCEDURE SP_WSR_SHEET_NAMES(I_EMP_ID      IN NUMBER,
              TO_CHAR(TO_DATE('''||V_PERIOD||''',''DD-MON-YY''), ''DD_Mon_RRRR'') FILE_NAME
         FROM NEW_BTG_ACCOUNT_MAPPING I
        WHERE 1=1 ' || V_COND||'';
+       
+       
       -----------------FOR HC SHEET 
        ELSIF upper(I_REPORT_NAME) = 'HC' THEN
          QRY := 'SELECT  DISTINCT ''BTG_HC'' || ''_'' ||
@@ -1592,7 +1612,7 @@ PROCEDURE SP_WSR_SHEET_NAMES(I_EMP_ID      IN NUMBER,
 
   
 
- PROCEDURE SP_WSR_REFERENCE_SHEET(I_EMP_ID      IN NUMBER,
+  PROCEDURE SP_WSR_REFERENCE_SHEET(I_EMP_ID      IN NUMBER,
                                    I_CORP_ID     IN NUMBER,
                                    I_BG_ID       IN VARCHAR2,
                                    I_ISU_ID      IN VARCHAR2,
@@ -1620,6 +1640,8 @@ PROCEDURE SP_WSR_SHEET_NAMES(I_EMP_ID      IN NUMBER,
         FROM ISU_MSTR_NEW I
        WHERE I.ISU_ID = I_ISU_ID;
   */
+  
+ 
     OPEN O_CUR_ACC FOR
       SELECT 'Sub IOU' SUB_IOU, 'Account' Account
         FROM DUAL
@@ -1629,7 +1651,7 @@ PROCEDURE SP_WSR_SHEET_NAMES(I_EMP_ID      IN NUMBER,
                 FROM NEW_BTG_ACCOUNT_MAPPING T
                 WHERE T.IOU_ID = I_ISU_ID
                  AND T.SUB_IOU_ID = I_CLUS_ID 
-               
+              
                ORDER BY T.SUB_IOU, T.SHORT_NAME);
   
    /* OPEN O_CUR_P_GRP FOR
@@ -1697,10 +1719,12 @@ PROCEDURE SP_WSR_SHEET_NAMES(I_EMP_ID      IN NUMBER,
         
      
   -- ELSE
+  
+
      
       
         OPEN O_CUR_TYPE FOR 
-        SELECT 'Visit / Connect Sentiment (Customers perspective)' from dual 
+        SELECT 'Visit / Connect Sentiment (Customers perspective)' from dual
         union all
         SELECT '1 - Poor' from dual
         union all
@@ -1863,8 +1887,1108 @@ PROCEDURE SP_WSR_SHEET_NAMES(I_EMP_ID      IN NUMBER,
         FROM DUAL;*/
   
   END;
-  
  procedure SP_UPLOAD_STATUS_MAIL_BTG(I_EMP_ID  IN NUMBER,
+                                        I_ISU_ID  IN NUMBER,
+                                        I_OTHERS  IN VARCHAR2, ---week/month#date
+                                        I_ALERT#  IN NUMBER, ----468---422(PROD) 
+                                        O_MESSAGE OUT VARCHAR2) IS
+  V_ISU_CNT     NUMBER;
+  V_SYSDATE     DATE;
+  V_SUBJECT     VARCHAR2(1000);
+  V_BODY        VARCHAR2(1000);
+  V_DEAR        VARCHAR2(200);
+  V_MAIN_BODY   CLOB;
+  V_THANKS      VARCHAR2(2000);
+  V_FILE_DATE   VARCHAR2(200);
+  V_SYS_DATE    VARCHAR2(1000);
+  V_CURR_QTR    VARCHAR2(1000);
+  V_CURR_MONTH  DATE;
+  V_SYSDATE     varchar2(400); --DATE;
+  V_LAST_WEEK   varchar2(400); --DATE;
+  V_GRID_HEADER CLOB;
+  V_WHOLE_GRID  CLOB;
+  V_GRID_DATA   CLOB;
+  V_GRID        CLOB;
+  V_DATA_CUR    SYS_REFCURSOR;
+  V_REP_DATA    VARCHAR2(4000);
+  V_COL1        VARCHAR2(4000);
+  V_COL2        VARCHAR2(4000);
+  V_COL3        VARCHAR2(4000);
+  V_COL4        VARCHAR2(4000);
+  V_COL5        VARCHAR2(4000);
+  V_COL6        VARCHAR2(4000);
+  V_COL7        VARCHAR2(4000);
+  V_COL8        VARCHAR2(4000);
+  V_COL9        VARCHAR2(4000);
+  V_COL10       VARCHAR2(4000);
+  V_COL11       VARCHAR2(4000);
+  V_COL12       VARCHAR2(4000);
+  V_COL13       VARCHAR2(4000);
+  V_COL14       VARCHAR2(4000);
+
+  QRY           LONG;
+  V_LP          NUMBER;
+  V_MONDAY_DATE VARCHAR2(1000);
+  V_TIME        NUMBER;
+  V_TO          VARCHAR2(4000);
+  V_CC          VARCHAR2(4000);
+  V_FROM        VARCHAR2(4000);
+  V_CNT         NUMBER;
+  V_ALERT_CNT   NUMBER;
+
+  V_ISU_COND VARCHAR2(4000);
+
+  V_OH_NAME     VARCHAR2(4000);
+  V_PL_NAME     VARCHAR2(4000);
+  V_FILE_DATE_1 VARCHAR2(100);
+  V_EXTRA       VARCHAR2(100);
+
+  V_SMP_MAIL       VARCHAR2(4000);
+  V_OH_MAIL        VARCHAR2(4000);
+  V_PL_HEAD_EMAIL  VARCHAR2(4000);
+  V_PL_HEAD_NAME   VARCHAR2(4000);
+  V_PL_HEAD_NAME_1 VARCHAR2(4000);
+  V_ISU_ID         NUMBER;
+  V_OTHERS         VARCHAR2(1000);
+
+  V_FIRST_5 varchar2(1000);
+  V_FIRST_4 varchar2(1000);
+  V_FIRST_3 varchar2(1000);
+  V_FIRST_2 varchar2(1000);
+  V_FIRST_1 varchar2(1000);
+  V_last_5  varchar2(1000);
+  V_LAST_4  varchar2(1000);
+  V_LAST_3  varchar2(1000);
+  V_LAST_2  varchar2(1000);
+  V_LAST_1  varchar2(1000);
+  V_COND    VARCHAR2(1000);
+  V_COND_1  VARCHAR2(1000);
+  QRY_1     VARCHAR2(1000);
+  V_DATE_5  VARCHAR2(1000);
+  V_DATE_1  VARCHAR2(1000);
+
+  V_DATE_2 VARCHAR2(1000);
+  V_DATE_3 VARCHAR2(1000);
+  V_DATE_4 VARCHAR2(1000);
+  V_COND_2 VARCHAR2(1000);
+  V_CUR_1  SYS_REFCURSOR;
+  v_month  varchar2(1000);
+  V_COND_6 varchar2(1000);
+  V_COND_7 varchar2(1000);
+  V_COND_8 varchar2(1000);
+  V_COL_12_1  varchar2(1000);
+  V_COL_5_1 varchar2(1000);
+  
+  V_DATE_11 VARCHAR2(1000);
+  V_DATE_12 VARCHAR2(1000);
+  V_DATE_13 VARCHAR2(1000);
+  V_DATE_14 VARCHAR2(1000);
+  V_DATE_15 VARCHAR2(1000);
+  
+
+BEGIN
+  IF I_ALERT# = 468 THEN
+  
+    DELETE FROM ALERT_EMAIL_OUTBOX
+     WHERE ALERT_ID = I_ALERT#
+       AND STATUS = 'NEW';
+    COMMIT;
+  
+    SELECT Q'<'>' || REPLACE(I_OTHERS, '#', Q'<'>' || ',' || Q'<'>') ||
+            Q'<'>'
+      INTO V_OTHERS
+      FROM DUAL;
+  
+    QRY := 'SELECT  ' || V_OTHERS || ' FROM DUAL';
+  
+    EXECUTE IMMEDIATE QRY
+      INTO v_extra, V_FILE_DATE_1;
+      
+      
+      
+      
+      INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
+      VALUES
+        (I_EMP_ID,
+         SYSDATE,
+         'PKG_BTG_WSR_DOWNLOAD.SP_BTG_DEFAULTER_MAIL',
+         I_EMP_ID||'-'||I_ISU_ID||'-'||I_OTHERS||'-'||I_ALERT#,
+         '',
+         I_ISU_ID,
+         '');
+    
+      COMMIT;
+  
+    IF I_ISU_ID <> 0 THEN
+      V_ISU_COND := 'in ( select distinct ACCOUNT_ID from NEW_BTG_ACCOUNT_MAPPING where iou_id =  ' ||
+                    I_ISU_ID || ')';
+      select OH_EMAIL, SMP_EMAIL, PL_HEAD_EMAIL
+        into V_TO, V_SMP_MAIL, V_PL_HEAD_EMAIL
+        from mapping_mail_details_wsr_btg
+       where iou_id = I_ISU_ID;
+    
+      select OH_NAME, PL_HEAD_NAME
+        into V_OH_NAME, V_PL_HEAD_NAME
+        from mapping_mail_details_wsr_btg
+       where iou_id = I_ISU_ID;
+      V_DEAR := '<HTML><BODY><FONT face="Calibri" > Dear ' || V_OH_NAME ||
+                V_PL_HEAD_NAME_1 || ',' || '<BR><BR>';
+    ELSE
+    
+      V_DEAR     := '<HTML><BODY><FONT face="Calibri" > Dear All ,<BR><BR>';
+      V_ISU_COND := '= T.ACCOUNT_ID';
+    END IF;
+  
+    PKG_BTG_WSR_DOWNLOAD.SP_WEEKLY_FILE_DATE(TO_DATE(V_FILE_DATE_1,
+                                                     'DD/MM/RRRR'),
+                                             V_FILE_DATE,
+                                             V_CURR_MONTH,
+                                             V_CURR_QTR);
+  
+    ---------Interval changed on 15/07/2019 by 974742-------------
+    SELECT TO_CHAR(TRUNC(TO_DATE(V_FILE_DATE, 'DD-MON-RR')) - INTERVAL '3' DAY,
+                   'dd-Mon-YYYY') AS PREV_THURSDAY,
+           TO_CHAR(TRUNC(TO_DATE(V_FILE_DATE, 'DD-MON-RR')) + INTERVAL '3' DAY,
+                   'dd-Mon-YYYY') AS NEXT_WED
+      INTO V_LAST_WEEK, V_SYS_DATE
+      FROM DUAL;
+  
+    QRY := 'SELECT TO_DATE(''' || V_FILE_DATE ||
+           ''',''DD-MON-RRRR'')+1||'' 08.00.00.000000 PM'' FROM DUAL';
+    EXECUTE IMMEDIATE QRY
+      INTO V_MONDAY_DATE;
+  
+    IF V_PL_HEAD_EMAIL IS NOT NULL THEN
+      V_TO := V_TO || ',' || V_PL_HEAD_EMAIL;
+    END IF;
+  
+    if V_PL_HEAD_NAME is NULL then
+      V_OH_NAME        := V_OH_NAME || ',';
+      V_PL_HEAD_NAME_1 := ' ';
+    else
+      V_PL_HEAD_NAME_1 := '/' || V_PL_HEAD_NAME || ',';
+      V_OH_NAME        := V_OH_NAME;
+    end if;
+  
+    IF I_ISU_ID <> 0 THEN
+    
+      V_DEAR := '<HTML><BODY><FONT face="Calibri" > Dear ' || V_OH_NAME ||
+                V_PL_HEAD_NAME_1 || '<BR><BR>';
+    ELSE
+    
+      V_DEAR := '<HTML><BODY><FONT face="Calibri" > Dear All ,<BR><BR>';
+    
+    END IF;
+  
+    IF upper(V_EXTRA) = 'WEEK' THEN
+    
+      V_SUBJECT := 'WSR Submission status: Week of <DATE1> to <DATE>';
+    
+      V_SUBJECT := FN_MULTIPLE_REPLACE(V_SUBJECT,
+                                       NEW T_TEXT('<DATE>', '<DATE1>'),
+                                       NEW T_TEXT(V_SYS_DATE, V_LAST_WEEK));
+    
+      v_BODY := 'Please find the attached WSR Submission status for the week of ' ||
+                V_LAST_WEEK || ' to ' || V_SYS_DATE || ' <br>
+
+<CENTER><BR><BR>';
+      IF I_ISU_ID = 0 THEN
+        V_GRID_HEADER := '<div style="">
+   <table style=" border-collapse:collapse;">
+  <tr style=''color:WHITE ; background: #5898D0;''>
+               
+               <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Account</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>File Uploaded Status</th>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Uploaded Date</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Submitted Status</th>
+                <TH colspan="1" style="background:white" ></TH>
+                <TH colspan="1" style="background:white" ></TH>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Account</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>File Uploaded Status</th>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Uploaded Date</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Submitted Status</th>
+            </tr>';
+      ELSIF I_ISU_ID <> 0 THEN
+        V_GRID_HEADER := '<div style="">
+   <table style=" border-collapse:collapse;">
+  <tr style=''color:WHITE ; background: #5898D0;''>
+               
+               <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Account</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>File Uploaded Status</th>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Uploaded Date</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Submitted Status</th>
+              
+             </tr>';
+      END IF;
+    
+      QRY := 'select a.short_name, a.status,a.uploaded_date,a.cn,a.freeze,'','','','',b.short_name,b.status,b.uploaded_date,b.cn,b.freeze from
+(( select * from (select  rownum rn , short_name, status,uploaded_date,cn,freeze from (SELECT  
+           distinct A.short_name,
+           DECODE(T.file_uploaded,''N'',''Not Uploaded'',''Y'',''Uploaded'') status,
+           TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-Mon-RRRR'')uploaded_date,
+           ''&#9873;'' cn,
+          CASE WHEN T.FREEZE_FLAG =''Y'' AND T.FREEZED_DATE <=''' ||
+             V_MONDAY_DATE ||
+             ''' THEN
+                          ''GREEN''
+                          WHEN T.FREEZE_FLAG =''Y'' AND T.FREEZED_DATE >=''' ||
+             V_MONDAY_DATE || ''' THEN
+                          ''GREEN''
+                          ELSE
+                           ''RED''
+           END FREEZE
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T,NEW_BTG_ACCOUNT_MAPPING A
+ WHERE T.FILE_DATE = ''' || V_FILE_DATE || '''
+ --AND T.ISU_ID <> 263
+ AND A.IOU_ID = T.ISU_ID
+ AND A.SUB_IOU_ID = T.SUB_ISU_ID
+ AND A.ACCOUNT_ID ' || V_ISU_COND || '
+ 
+ --AND A.ACCOUNT_ID  in ( select distinct ACCOUNT_ID from WKLY_REP_FRZ_UNFRZ_BTG where iou_id =  ''' ||
+             I_ISU_ID || ''')
+  ORDER BY short_name asc)) where rn <= 15 )a
+ full outer join
+ 
+ (select rn - 15 rn , short_name, status,uploaded_date,cn,freeze from (select  rownum rn , short_name, status,uploaded_date,cn,freeze from (SELECT  
+           distinct A.short_name,
+           DECODE(T.file_uploaded,''N'',''Not Uploaded'',''Y'',''Uploaded'') status,
+           TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-Mon-RRRR'')uploaded_date,
+           ''&#9873;'' cn,
+          CASE WHEN T.FREEZE_FLAG =''Y'' AND T.FREEZED_DATE <=''' ||
+             V_MONDAY_DATE ||
+             ''' THEN
+                          ''GREEN''
+                          WHEN T.FREEZE_FLAG =''Y'' AND T.FREEZED_DATE >=''' ||
+             V_MONDAY_DATE || ''' THEN
+                          ''GREEN''
+                          ELSE
+                           ''RED''
+           END FREEZE
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T,NEW_BTG_ACCOUNT_MAPPING A
+ WHERE T.FILE_DATE = ''' || V_FILE_DATE || '''
+ --AND T.ISU_ID <> 263
+ AND A.IOU_ID = T.ISU_ID
+ AND A.SUB_IOU_ID = T.SUB_ISU_ID
+ AND A.ACCOUNT_ID ' || V_ISU_COND || '
+ --AND A.ACCOUNT_ID in ( select distinct ACCOUNT_ID from WKLY_REP_FRZ_UNFRZ_BTG where iou_id = ' ||
+             I_ISU_ID || ')
+  ORDER BY short_name asc)) where rn >= 16 )b
+  on a.rn = b.rn
+) 
+   ';
+    
+      /*  QRY:='select  short_name, status,uploaded_date,cn,freeze from (SELECT  
+                distinct A.short_name,
+                DECODE(T.file_uploaded,''N'',''Not Uploaded'',''Y'',''Uploaded'') status,
+                TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-Mon-RRRR'')uploaded_date,
+                ''&#9873;'' cn,
+               CASE WHEN T.FREEZE_FLAG =''Y'' AND T.FREEZED_DATE <='''||V_MONDAY_DATE||''' THEN
+                               ''GREEN''
+                               WHEN T.FREEZE_FLAG =''Y'' AND T.FREEZED_DATE >='''||V_MONDAY_DATE||''' THEN
+                               ''GREEN''
+                               ELSE
+                                ''RED''
+                END FREEZE
+       FROM WKLY_REP_FRZ_UNFRZ_BTG T,NEW_BTG_ACCOUNT_MAPPING A
+      WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
+      AND T.ISU_ID <> 263
+      AND T.ACCOUNT_ID IN (5587,5600,5601,5602,5603,5698,5699,5592)
+      AND A.IOU_ID = T.ISU_ID
+      AND A.SUB_IOU_ID = T.SUB_ISU_ID
+      AND A.ACCOUNT_ID = T.ACCOUNT_ID
+      )
+       ORDER BY short_name asc';*/
+    
+      delete from hd_dummy;
+      insert into hd_dummy values (qry);
+      commit;
+    
+      OPEN V_DATA_CUR FOR QRY;
+    
+      --  V_LP:=0; 
+    
+      LOOP
+      
+        FETCH V_DATA_CUR
+          INTO V_COL1,
+               V_COL2,
+               V_COL3,
+               V_COL4,
+               V_COL5,
+               V_COl6,
+               V_COl7,
+               V_COl8,
+               V_COL9,
+               V_COL10,
+               V_COL11,
+               V_COL12;
+        EXIT WHEN V_DATA_CUR%NOTFOUND;
+      
+        /* IF V_LP=0 THEN
+        
+        V_GRID_DATA := '<tr style=''color:black;''>
+                     <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||V_COL1|| '</td>
+                     <td ALIGN=''CENTER'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;''>' ||V_COL2 || '</td>
+                     <td ALIGN=''CENTER'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;''>' ||V_COL3 || '</td>
+                     <td ALIGN=''CENTER'' style=''color:'||V_COL5||';font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;''><b>' ||V_COL4 || '</b></td>
+                     </tr>';
+        V_whole_grid:=V_GRID_DATA;
+        
+        ELSE*/
+      
+        V_GRID_DATA  := '<tr style=''color:black;''>
+                        <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||
+                        V_COL1 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;''>' ||
+                        V_COL2 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;''>' ||
+                        V_COL3 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                        V_COL5 ||
+                        ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                        V_COL4 ||
+                        '</b></td>
+                        <td colspan="1" ></td>
+                        <td colspan="1" ></td>
+                        <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||
+                        V_COL8 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;''>' ||
+                        V_COL9 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;''>' ||
+                        V_COL10 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                        V_COL12 ||
+                        ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                        V_COL11 || '</b></td>
+                        
+                        </tr>';
+        V_whole_grid := V_whole_grid || V_GRID_DATA;
+      
+        --END IF;
+      
+        --V_LP:=V_LP+1;
+      
+      END LOOP;
+      CLOSE V_DATA_CUR;
+      DELETE FROM X_TST;
+      COMMIT;
+      INSERT INTO X_TST VALUES (V_whole_grid);
+      COMMIT;
+    
+      -- V_REGARDS:='ISU HEAD';
+      V_THANKS := '<br></center><font face="Calibri" style=''font-size: 15px;''>Best Regards <BR>
+                      ISOMetrix
+                      <BR><br>
+                      <I> *This is a system generated m
+                      ail. Do not reply to this mail.</I>
+                      <br></body></font></html>';
+    
+      -----DEAR + BODY + THANKS
+      --V_MAIN_BODY := V_DEAR || V_BODY || V_THANKS;
+    
+      V_GRID := '<!DOCTYPE html>
+               <html>
+               <head>
+               <meta charset="UTF-8">
+                </head>
+               <style>
+              
+                    .space {
+                        width: 1px !important;
+                    }
+                </style>
+            <body>    
+            <font style="font-family:Cambria;" size="1">
+             <table style=''width:550px; height:0px;'' cellspacing=0>
+                  <tr>
+                  <td style=''color:green;font-size: 20px;font-family: Cambria, serif, EmojiFont;font-weight: 100;font-size: 15px;''>&#9873;&nbsp;&nbsp;<font color="black">Submitted On Time</font></td>
+                 <!-- <td style=''color:orange;font-size: 20px;font-family: Cambria, serif, EmojiFont;font-weight: 100;font-size: 15px;''>&#9873;&nbsp;&nbsp;<font color="black">Submitted after Monday 06.00 PM</font></td>-->
+                  <td style=''color:red;font-size: 20px;font-family: Cambria, serif, EmojiFont;font-weight: 100;font-size: 15px;''>&#9873;&nbsp;&nbsp;<font color="black">Not Submitted</font></td>
+                  </tr>
+                  </table><br><br>
+                    <!--<table style=''width:650px; height:0px;'' cellspacing=0>-->
+                ' || V_GRID_HEADER || '
+                ' || V_WHOLE_GRID || '
+              </table><br>';
+    
+      ----------------------------------------------------------------------------------------
+    
+      V_MAIN_BODY := V_DEAR || V_BODY || V_GRID || V_THANKS;
+    
+      SELECT SUBSTR(to_char(sysdate, 'hh24:mi:ss'), 1, 2)
+        INTO V_TIME
+        from dual;
+    
+      V_CC := 'sameer.asiddiqui@tcs.com,mayur.mahajan@tcs.com' || ',' ||
+              V_SMP_MAIL;
+    
+      IF I_ISU_ID IS NULL OR I_ISU_ID = 0 THEN
+        V_TO := 'd.chopra@tcs.com,mayur.mahajan@tcs.com';
+        V_CC := 'mathews.koshy@tcs.com,alex.duraisamy@tcs.com';
+      END IF;
+    
+      V_TO := 'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com';
+      V_CC := 'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com';
+      ------------------------------     
+    ELSIF UPPER(V_EXTRA) = 'MONTH' THEN
+      V_TO := 'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com';
+      V_CC := 'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com';
+    
+      SELECT count(week_id)
+        INTO V_CNT
+        FROM WSR_CALENDAR
+      
+       where to_char(to_date(V_FILE_DATE_1, 'dd/mM/yyyy'), 'mm') = month;
+    
+      IF V_CNT = 5 THEN
+        V_COND_2 := ' IN (1,2,3,4,5)';
+      ELSIF V_CNT = 4 THEN
+        V_COND_2 := ' IN (1,2,3,4)';
+      END IF;
+    
+      QRY_1 := 'SELECT *  FROM (SELECT FILE_DATE,ROWNUM RN FROM
+  (SELECT FILE_DATE FROM (SELECT DISTINCT  FILE_DATE,WEEK_ID 
+ FROM  WSR_CALENDAR where 
+to_char(to_date(''' || V_FILE_DATE_1 || ''',''DD/MM/YYYY''),''mm'') = month ) ORDER BY WEEK_ID)) PIVOT(MAX(FILE_DATE)
+ FOR RN ' || V_COND_2 || ')';
+    
+      IF V_CNT = 5 THEN
+        OPEN V_CUR_1 FOR QRY_1;
+      
+        LOOP
+          FETCH V_CUR_1
+            INTO V_DATE_1, V_DATE_2, V_DATE_3, V_DATE_4, V_DATE_5;
+          EXIT WHEN V_CUR_1% NOTFOUND;
+        
+        END LOOP;
+        CLOSE V_CUR_1;
+      ELSIF V_CNT = 4 THEN
+      
+        OPEN V_CUR_1 FOR QRY_1;
+      
+        LOOP
+          FETCH V_CUR_1
+            INTO V_DATE_1, V_DATE_2, V_DATE_3, V_DATE_4;
+        
+          EXIT WHEN V_CUR_1% NOTFOUND;
+        
+        END LOOP;
+        CLOSE V_CUR_1;
+      END IF;
+      
+    -- V_DATE_11 = 
+SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_1, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                   'dd-Mon-YYYY') AS PREV_THURSDAY INTO V_DATE_11 FROM DUAL;
+                   
+ SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_2, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                   'dd-Mon-YYYY') AS PREV_THURSDAY INTO V_DATE_12 FROM DUAL;                  
+                   
+                   
+                   
+                   
+SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_3, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                   'dd-Mon-YYYY') AS PREV_THURSDAY INTO V_DATE_13 FROM DUAL;
+SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_4, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                   'dd-Mon-YYYY') AS PREV_THURSDAY INTO V_DATE_14 FROM DUAL;
+SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_5, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                   'dd-Mon-YYYY') AS PREV_THURSDAY INTO V_DATE_15 FROM DUAL;     
+      
+    
+      IF V_CNT = 5 THEN
+      
+        V_COND := ' (SELECT DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >=''' || V_DATE_15 || ''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_5 || ''')s
+  
+  
+  on k.account_id = s.account_id ';
+      
+        V_COND_1 := ',s.m_freeze_flag week5';
+        V_COND_6 := ',WEEK5';
+        V_COND_7 := ',Z.WEEK5';
+        V_COND_8 := ',Y.WEEK5';
+      
+      ELSIF V_CNT = 4 THEN
+        V_COND := '';
+      
+        V_COND_1 := '';
+      END IF;
+      
+    
+      select SUBSTR(TO_CHAR(TO_DATE(V_FILE_DATE_1, 'DD/MM/YYYY'), 'MONTH'),
+                    1,
+                    3)
+        INTO V_MONTH
+        from dual;
+    
+      SELECT WEEK_START, WEEK_END
+        INTO V_FIRST_1, V_LAST_1
+        FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+                FROM WSR_CALENDAR
+               where to_char(to_date(V_FILE_DATE_1, 'DD/MM/YYYY'), 'mm') =
+                     month)
+       WHERE WEEK_ID = 1;
+    
+      SELECT WEEK_START, WEEK_END
+        INTO V_FIRST_2, V_LAST_2
+        FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+                FROM WSR_CALENDAR
+               where to_char(to_date(V_FILE_DATE_1, 'DD/MM/YYYY'), 'mm') =
+                     month)
+       WHERE WEEK_ID = 2;
+    
+      SELECT WEEK_START, WEEK_END
+        INTO V_FIRST_3, V_LAST_3
+        FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+                FROM WSR_CALENDAR
+               where to_char(to_date(V_FILE_DATE_1, 'DD/MM/YYYY'), 'mm') =
+                     month)
+       WHERE WEEK_ID = 3;
+    
+      SELECT WEEK_START, WEEK_END
+        INTO V_FIRST_4, V_LAST_4
+        FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+                FROM WSR_CALENDAR
+               where to_char(to_date(V_FILE_DATE_1, 'DD/MM/YYYY'), 'mm') =
+                     month)
+       WHERE WEEK_ID = 4;
+    
+      IF V_CNT = 5 THEN
+      
+        SELECT WEEK_START, WEEK_END
+          INTO V_FIRST_5, V_LAST_5
+          FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+                  FROM WSR_CALENDAR
+                 where to_char(to_date(V_FILE_DATE_1, 'DD/MM/YYYY'), 'mm') =
+                       month)
+         WHERE WEEK_ID = 5;
+      END IF;
+    
+      v_BODY    := 'Please find the attached WSR Submission status for the month of ' ||
+                   v_month || ' <br>
+      <CENTER><BR><BR>';
+      V_SUBJECT := 'WSR Submission status: Month  of <MONTH> ';
+    
+      --   V_SUBJECT := 'WSR Submission status: Week of <DATE1> to <DATE>';
+    
+      V_SUBJECT := FN_MULTIPLE_REPLACE(V_SUBJECT,
+                                       NEW T_TEXT('<MONTH>'),
+                                       NEW T_TEXT(V_MONTH));
+    
+      IF V_CNT = 4 THEN
+        V_GRID_HEADER := '<div style="">
+   <table style=" border-collapse:collapse;">
+  <tr style=''color:WHITE ; background: #5898D0;''>
+               
+               <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Account</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK1(' || CHR(13) || v_first_1 || ' to ' ||
+                         V_LAST_1 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK2(' || CHR(13) || v_first_2 || ' to ' ||
+                         V_LAST_2 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK3(' || CHR(13) || v_first_3 || ' to ' ||
+                         V_LAST_3 || ')' ||
+                         '</th>
+              <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK3(' || CHR(13) || v_first_4 || ' to ' ||
+                         V_LAST_3 || ')' ||
+                         '</th>
+
+                <TH colspan="1" style="background:white" ></TH>
+                <TH colspan="1" style="background:white" ></TH>
+                 <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Account</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK1(' || CHR(13) || v_first_1 || ' to ' ||
+                         V_LAST_1 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK2(' || CHR(13) || v_first_2 || ' to ' ||
+                         V_LAST_2 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK3(' || CHR(13) || v_first_3 || ' to ' ||
+                         V_LAST_3 || ')' ||
+                         '</th>
+              <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK4(' || CHR(13) || v_first_4 || ' to ' ||
+                         V_LAST_4 || ')' || '</th>
+            </tr>';
+      
+      ELSIF V_CNT = 5 THEN
+        V_GRID_HEADER := '<div style="">
+   <table style=" border-collapse:collapse;">
+  <tr style=''color:WHITE ; background: #5898D0;''>
+               
+               <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Account</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK1(' || CHR(13) || v_first_1 || ' to ' ||
+                         V_LAST_1 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK2(' || CHR(13) || v_first_2 || ' to ' ||
+                         V_LAST_2 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK3(' || CHR(13) || v_first_3 || ' to ' ||
+                         V_LAST_3 || ')' ||
+                         '</th>
+              <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK4(' || CHR(13) || v_first_4 || ' to ' ||
+                         V_LAST_4 || ')' ||
+                         '</th>
+             <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK5(' || CHR(13) || v_first_5 || ' to ' ||
+                         V_LAST_5 || ')' ||
+                         '</th>
+
+
+                <TH colspan="1" style="background:white" ></TH>
+                <TH colspan="1" style="background:white" ></TH>
+                 <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>Account</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK1(' || CHR(13) || v_first_1 || ' to ' ||
+                         V_LAST_1 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 100px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK2(' || CHR(13) || v_first_2 || ' to ' ||
+                         V_LAST_2 || ')' ||
+                         '</th>
+                <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK3(' || CHR(13) || v_first_3 || ' to ' ||
+                         V_LAST_3 || ')' ||
+                         '</th>
+              <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK4(' || CHR(13) || v_first_4 || ' to ' ||
+                         V_LAST_4 || ')' ||
+                         '</th>
+             <th  ALIGN=''CENTER'' style=''width: 150px;vertical-align:center;font-size: 13px; font-family: Cambria, serif, EmojiFont;''>' ||
+                         'WEEK5(' || CHR(13) || v_first_5 || ' to ' ||
+                         V_LAST_5 || ')' || '</th>
+
+            </tr>';
+      
+      END IF;
+    
+      QRY := '
+
+
+
+SELECT  Y.SHORT_NAME,Y.week1,Y.week2 ,Y.week3,
+ Y.week4,Y.CN,'','','','', Z.SHORT_NAME,Z.week1,Z.week2 ,Z.week3,
+ Z.week4,Z.CN FROM (SELECT * FROM (
+SELECT rownum rn ,short_name, week1,week2 ,week3,
+ week4,CN FROM (
+select distinct  K.ACCOUNT_ID,
+k.short_name SHORT_NAME ,
+
+    a.m_freeze_flag WEEK1
+ ,
+   B.m_freeze_flag week2 ,
+   D.m_freeze_flag week3,
+   
+f.m_freeze_flag week4   ,''&#9873;'' cn
+
+
+
+  from 
+new_btg_account_mapping k
+left outer   join 
+(SELECT DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >='''||V_DATE_11||''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_1 || ''') a on 
+  a.account_id = k.account_id
+  
+  left outer join 
+  
+  (SELECT DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >=''' || V_DATE_12 || ''' THEN   ''orange''  
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+    
+      ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_2 || ''') b
+   on k.account_id = b.account_id
+   left outer join 
+    (SELECT DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >=''' || V_DATE_13 || ''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_3 || ''') d
+  on k.account_id = d.account_id
+  left outer join 
+  (SELECT  DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >=''' || V_DATE_14 || ''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_4 || ''') f 
+  ON  k.account_id = F.account_id 
+  
+  
+ 
+  order by short_name ASC )) WHERE rn <= 15 ) Y
+  
+  FULL OUTER JOIN 
+ (SELECT  rn - 15 rn , short_name, week1,week2 ,week3,
+ week4 ,CN FROM (
+SELECT rownum rn ,short_name, week1,week2 ,week3,
+ week4 ,CN FROM (
+select distinct  K.ACCOUNT_ID,k.short_name SHORT_NAME ,
+ a.m_freeze_flag WEEK1
+ ,
+   B.m_freeze_flag week2 ,
+   D.m_freeze_flag week3,
+   
+f.m_freeze_flag week4  ,''&#9873;'' cn
+
+
+
+  from 
+new_btg_account_mapping k
+left outer   join 
+(SELECT DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >='''||V_DATE_11||''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_1 || ''')  a on 
+  a.account_id = k.account_id
+  
+  left outer join 
+  
+  (SELECT DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >=''' || V_DATE_12 || ''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_2 || ''') b
+   on k.account_id = b.account_id
+   left outer join 
+    (SELECT DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >=''' || V_DATE_13 || ''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_3 || ''') d
+  on k.account_id = d.account_id
+  left outer join 
+  (SELECT  DISTINCT ACCOUNT_ID,Case 
+  WHEN m_freeze_flag = ''N'' THEN ''RED''
+    when m_freeze_flag = ''Y'' AND FREEZED_DATE >=''' || V_DATE_14 || ''' THEN   ''orange''
+      when m_freeze_flag =''Y'' THEN ''GREEN''
+       ELSE 
+        ''GREY''
+    END M_FREEZE_FLAG FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_4 || ''') f 
+  ON  k.account_id = F.account_id 
+  
+  
+  
+ 
+  order by short_name))  where rn >= 16 )Z
+   on Y.rn = Z.rn 
+  
+
+  
+
+
+  
+';
+    
+      delete from hd_dummy;
+      insert into hd_dummy values (qry);
+      commit;
+    
+      IF V_CNT = 4 THEN
+      
+        OPEN V_DATA_CUR FOR QRY;
+      
+        --  V_LP:=0; 
+        LOOP
+        
+          FETCH V_DATA_CUR
+            INTO V_COL1,
+                 V_COL2,
+                 V_COL3,
+                 V_COL4,
+                 V_COL5,
+                 V_COL_5_1,
+                 V_COl6,
+                 V_COl7,
+                 V_COl8,
+                 V_COL9,
+                 V_COL10,
+                 V_COL11,
+                 V_COL12,
+                 V_COL_12_1;
+          EXIT WHEN V_DATA_CUR%NOTFOUND;
+        
+        
+          V_GRID_DATA  := ' <tr style=''color:black;''>
+          <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||
+                        V_COL1 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL2 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL3 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL4 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</td>
+
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL5 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</b></td>
+                        <td colspan="1" ></td>
+                        <td colspan="1" ></td>
+                        
+                        <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||
+                        V_COL8 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL9 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 ||
+                          '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL10 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 ||
+                          '</td>
+                      <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL11 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 ||
+                          '</td>
+
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL12 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 || '</b></td>
+                        
+                        </tr>';
+          V_whole_grid := V_whole_grid || V_GRID_DATA;
+        END LOOP;
+        CLOSE V_DATA_CUR;
+      
+      ELSIF V_CNT = 5 THEN
+        OPEN V_DATA_CUR FOR QRY;
+      
+        --  V_LP:=0; 
+        LOOP
+        
+          FETCH V_DATA_CUR
+            INTO V_COL1,
+                 V_COL2,
+                 V_COL3,
+                 V_COL4,
+                 V_COL5,
+                 V_COl6,
+                 V_COL_5_1,
+                 V_COl7,
+                 V_COl8,
+                 V_COL9,
+                 V_COL10,
+                 V_COL11,
+                 V_COL12,
+                 V_COL13,
+                 V_COL14,
+                 V_COL_12_1;
+          EXIT WHEN V_DATA_CUR%NOTFOUND;
+        
+          V_GRID_DATA  := ' <tr style=''color:black;''>
+          <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||
+                        V_COL1 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL2 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL3 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL4 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</td>
+                           <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL5 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL6 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_5_1 ||
+                          '</b></td>
+                          
+
+                        <td colspan="1" ></td>
+                        <td colspan="1" ></td>
+                        <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||
+                        V_COL9 ||
+                        '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL10 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 ||
+                          '</td>
+                       <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL11 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 ||
+                          '</td>
+                      <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL12 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 ||
+                          '</td>
+
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL13 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 ||
+                          '</td>
+                        <td ALIGN=''CENTER'' style=''color:' ||
+                          V_COL14 ||
+                          ';height:25px; font-size: 12px;font-family: Calibri;font-weight: 300;''><b>' ||
+                          V_COL_12_1 || '</b></td>
+
+                        
+                        </tr>';
+          V_whole_grid := V_whole_grid || V_GRID_DATA;
+        END LOOP;
+        CLOSE V_DATA_CUR;
+      END IF;
+    
+      DELETE FROM X_TST;
+      COMMIT;
+      INSERT INTO X_TST VALUES (V_whole_grid);
+      COMMIT;
+    
+      V_THANKS := '<br></center><font face="Calibri" style=''font-size: 15px;''>Best Regards <BR>
+                      ISOMetrix
+                      <BR><br>
+                      <I> *This is a system generated m
+                      ail. Do not reply to this mail.</I>
+                      <br></body></font></html>';
+    
+      -----DEAR + BODY + THANKS
+      --V_MAIN_BODY := V_DEAR || V_BODY || V_THANKS;
+    
+      V_GRID := '<!DOCTYPE html>
+               <html>
+               <head>
+               <meta charset="UTF-8">
+                </head>
+               <style>
+              
+                    .space {
+                        width: 1px !important;
+                    }
+                </style>
+            <body>    
+            <font style="font-family:Cambria;" size="1">
+             <table style=''width:550px; height:0px;'' cellspacing=0>
+                  <tr>
+                  <td style=''color:green;font-size: 20px;font-family: Cambria, serif, EmojiFont;font-weight: 100;font-size: 15px;''>&#9873;&nbsp;&nbsp;<font color="black">Submitted On Time</font></td>
+                  <td style=''color:orange;font-size: 20px;font-family: Cambria, serif, EmojiFont;font-weight: 100;font-size: 15px;''>&#9873;&nbsp;&nbsp;<font color="black">Submitted after sunday 06.00 AM</font></td>
+                  <td style=''color:red;font-size: 20px;font-family: Cambria, serif, EmojiFont;font-weight: 100;font-size: 15px;''>&#9873;&nbsp;&nbsp;<font color="black">Not Submitted</font></td>
+                    <td style=''color:grey;font-size: 20px;font-family: Cambria, serif, EmojiFont;font-weight: 100;font-size: 15px;''>&#9873;&nbsp;&nbsp;<font color="black">week yet to start</font></td>
+
+                  </tr>
+                  </table><br><br>
+                    <!--<table style=''width:650px; height:0px;'' cellspacing=0>-->
+                ' || V_GRID_HEADER || '
+                ' || V_WHOLE_GRID || '
+              </table><br>';
+    
+      ----------------------------------------------------------------------------------------
+    
+      V_MAIN_BODY := V_DEAR || V_BODY || V_GRID || V_THANKS;
+    
+    END IF;
+    
+    v_to := 'sokitha.k5@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com';
+    v_cc := 'sokitha.k5@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com';
+  
+    INSERT INTO ALERT_EMAIL_OUTBOX
+    VALUES
+      (SEQ_EMAIL_OUTBOX.NEXTVAL,
+       SYSDATE,
+       I_ALERT#,
+       'WSR Status',
+       V_TO, -- '998643,1187385,485680',--'alex.duraisamy@tcs.com,mathews.koshy@tcs.com,hemanth.kumar@tcs.com,sreejith.pn@tcs.com',-- '145720,81566,102996,92304,106407,125849,110114,104210,104705,103640,800670',-- ,mathews.koshy@tcs.com,hemanth.kumar@tcs.com,sreejith.pn@tcs.com   'lawanya.3@tcs.com,lakshmi.eswaran1@tcs.com,prasad.hari4@tcs.com',--'1349644', --271042,--PRATHEEK 
+       '', --V_EMAIL_ID,
+       V_CC, -- 'alex.duraisamy@tcs.com', --V_CC_EMP_LIST
+       '', --'', --'119060', --V_CC_EMAIL_ID
+       'sokitha.k5@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com', --V_BCC_EMP_LIST
+       '', --V_BCC_EMAIL_ID
+       V_SUBJECT,
+       V_MAIN_BODY,
+       '',
+       'NEW',
+       '',
+       I_ISU_ID);
+    COMMIT;
+  
+    O_MESSAGE := 'All Mail Sent';
+  
+  END IF;
+end SP_UPLOAD_STATUS_MAIL_BTG;
+
+
+  
+ /*procedure SP_UPLOAD_STATUS_MAIL_BTG(I_EMP_ID  IN NUMBER,
                               I_ISU_ID  IN NUMBER,
                               I_OTHERS  IN VARCHAR2,
                               I_ALERT#  IN NUMBER,----468---422(PROD)
@@ -1924,7 +3048,7 @@ PROCEDURE SP_WSR_SHEET_NAMES(I_EMP_ID      IN NUMBER,
    V_PL_HEAD_NAME_1 VARCHAR2(4000);
    V_ISU_ID NUMBER;
 BEGIN
-  IF I_ALERT# = 422 THEN
+  IF I_ALERT# = 468 THEN
   
     DELETE FROM ALERT_EMAIL_OUTBOX
      WHERE ALERT_ID = I_ALERT#
@@ -1987,7 +3111,7 @@ BEGIN
          V_DEAR := '<HTML><BODY><FONT face="Calibri" > Dear '||V_OH_NAME||V_PL_HEAD_NAME_1||'<BR><BR>';  
        ELSE
        
-          V_DEAR := '<HTML><BODY><FONT face="Calibri" > Dear Dinesh,<BR><BR>'; 
+          V_DEAR := '<HTML><BODY><FONT face="Calibri" > Dear All ,<BR><BR>'; 
         
          END IF;
     
@@ -2091,7 +3215,7 @@ IF I_ISU_ID = 0 THEN
             
             
   
- /*  QRY:='select  short_name, status,uploaded_date,cn,freeze from (SELECT  
+ \*  QRY:='select  short_name, status,uploaded_date,cn,freeze from (SELECT  
            distinct A.short_name,
            DECODE(T.file_uploaded,''N'',''Not Uploaded'',''Y'',''Uploaded'') status,
            TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-Mon-RRRR'')uploaded_date,
@@ -2111,7 +3235,7 @@ IF I_ISU_ID = 0 THEN
  AND A.SUB_IOU_ID = T.SUB_ISU_ID
  AND A.ACCOUNT_ID = T.ACCOUNT_ID
  )
-  ORDER BY short_name asc';*/
+  ORDER BY short_name asc';*\
    
    
     
@@ -2129,7 +3253,7 @@ IF I_ISU_ID = 0 THEN
           V_COL4,V_COL5,V_COl6,V_COl7,V_COl8,V_COL9,V_COL10,V_COL11,V_COL12;
         EXIT WHEN V_DATA_CUR%NOTFOUND;
    
-         /* IF V_LP=0 THEN
+         \* IF V_LP=0 THEN
            
            V_GRID_DATA := '<tr style=''color:black;''>
                         <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||V_COL1|| '</td>
@@ -2139,7 +3263,7 @@ IF I_ISU_ID = 0 THEN
                         </tr>';
            V_whole_grid:=V_GRID_DATA;
            
-           ELSE*/
+           ELSE*\
            
           V_GRID_DATA :=  '<tr style=''color:black;''>
                         <td ALIGN=''LEFT'' style=''font-size: 12px; height:25px; font-family: Calibri;font-weight: 300;white-space: nowrap; font-family: Cambria, serif, EmojiFont; ''>' ||V_COL1|| '</td>
@@ -2171,7 +3295,8 @@ IF I_ISU_ID = 0 THEN
     V_THANKS := '<br></center><font face="Calibri" style=''font-size: 15px;''>Best Regards <BR>
                       ISOMetrix
                       <BR><br>
-                      <I> *This is a system generated mail. Do not reply to this mail.</I>
+                      <I> *This is a system generated m
+                      ail. Do not reply to this mail.</I>
                       <br></body></font></html>';
   
   
@@ -2213,7 +3338,7 @@ IF I_ISU_ID = 0 THEN
      SELECT SUBSTR(to_char(sysdate, 'hh24:mi:ss'),1,2) INTO V_TIME from dual;
  
  
-/*SELECT COUNT(1) INTO V_ISU_CNT FROM (SELECT DISTINCT T.ISU_ID
+\*SELECT COUNT(1) INTO V_ISU_CNT FROM (SELECT DISTINCT T.ISU_ID
 FROM Wkly_Rep_Frz_Unfrz T WHERE T.FILE_DATE=V_FILE_DATE
 AND T.FILE_UPLOADED='Y' AND T.FREEZE_FLAG='Y'); 
 
@@ -2274,12 +3399,12 @@ ELSE
         V_FROM := 'TESTING';
         
 END IF;
-  */
+  *\
   
     
    
       
- /*DELETE FROM ALERT_EMAIL_OUTBOX
+ \*DELETE FROM ALERT_EMAIL_OUTBOX
      WHERE ALERT_ID = I_ALERT# 
        AND STATUS = 'NEW';
     COMMIT;
@@ -2289,14 +3414,18 @@ END IF;
       FROM ALERT_EMAIL_OUTBOX_HISTORY A
      WHERE A.ALERT_ID = 422
        AND A.STATUS = 'DELIVERED'
-       AND TRUNC(A.DATESTAMP)=TRUNC(SYSDATE);*/
+       AND TRUNC(A.DATESTAMP)=TRUNC(SYSDATE);*\
        
-  V_CC:='sameer.asiddiqui@tcs.com'||','||V_SMP_MAIL;
+  V_CC:='sameer.asiddiqui@tcs.com,mayur.mahajan@tcs.com'||','||V_SMP_MAIL;
   
   IF I_ISU_ID IS NULL OR I_ISU_ID = 0 THEN
-      V_TO:='d.chopra@tcs.com';
+      V_TO:='d.chopra@tcs.com,mayur.mahajan@tcs.com';
          V_CC:='mathews.koshy@tcs.com,alex.duraisamy@tcs.com';
          END IF;
+         
+         
+        V_TO := 'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com';
+        V_CC := 'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com';
   
   
    
@@ -2310,7 +3439,7 @@ END IF;
        '', --V_EMAIL_ID,
    V_CC,  -- 'alex.duraisamy@tcs.com', --V_CC_EMP_LIST
        '',--'', --'119060', --V_CC_EMAIL_ID
-     'g.nishashanthi@tcs.com,sruthi.balasubramanian@tcs.com,nandhini.thangavel1@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com,sokitha.k5@tcs.com', --V_BCC_EMP_LIST
+     'g.nishashanthi@tcs.com,sruthi.balasubramanian@tcs.com,nandhini.thangavel1@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com', --V_BCC_EMP_LIST
        '', --V_BCC_EMAIL_ID
        V_SUBJECT,
        V_MAIN_BODY,
@@ -2324,7 +3453,8 @@ END IF;
     O_MESSAGE := 'All Mail Sent';
   
   END IF;
-END SP_UPLOAD_STATUS_MAIL_BTG; 
+END SP_UPLOAD_STATUS_MAIL_BTG;*/ 
+
  
   
   
@@ -2374,7 +3504,7 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
     
       COMMIT;
   
-  IF I_ALERT# = 490 THEN
+  IF I_ALERT# = 612 THEN
   
     DELETE FROM ALERT_EMAIL_OUTBOX
      WHERE ALERT_ID = I_ALERT#
@@ -2404,7 +3534,7 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
    WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
          AND T.FREEZE_FLAG = ''N'' 
          --AND T.FILE_UPLOADED = ''N''
-         and t.isu_id <> 263
+        -- and t.isu_id <> 263
         ';
    
   OPEN V_DATA_CUR FOR QRY;
@@ -2475,11 +3605,13 @@ listagg(INITCAP(T.email_address),'','') within group (order by null)email_addres
        SYSDATE,
        I_ALERT#,
       'BTG Operations',
-      V_ISU_HEAD_ID,--'premcharan.s@tcs.com',-- V_ISU_HEAD_ID,--'premcharan.s@tcs.com,nandhini.thangavel1@tcs.com', 
+      'sokitha.k5@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com,nandhini.thangavel1@tcs.com',
+      --V_ISU_HEAD_ID,--'premcharan.s@tcs.com',-- V_ISU_HEAD_ID,--'premcharan.s@tcs.com,nandhini.thangavel1@tcs.com', 
        '', 
      '',--'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com',-- V_CC,--'sruthi.balasubramanian@tcs.com,lakshmi.eswaran1@tcs.com',
        '',
-    'g.nishashanthi@tcs.com,sruthi.balasubramanian@tcs.com,lakshmi.eswaran1@tcs.com,premcharan.s@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com,nandhini.thangavel1@tcs.com,sokitha.k5@tcs.com', --V_BCC_EMP_LIST
+      'sokitha.k5@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com', 
+   --'g.nishashanthi@tcs.com,sruthi.balasubramanian@tcs.com,sokitha.k5@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com,nandhini.thangavel1@tcs.com', --V_BCC_EMP_LIST
        '',
        V_SUBJECT,
        V_MAIN_BODY,
@@ -2503,7 +3635,8 @@ listagg(INITCAP(T.email_address),'','') within group (order by null)email_addres
   
 end sp_btg_defaulter_mail;
 
-PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
+
+ PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
                        I_COORPORATE    IN VARCHAR2,
                        I_BU            IN VARCHAR2,
                        I_ISU           IN NUMBER,
@@ -2523,7 +3656,8 @@ PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
   V_CURR_QTR       VARCHAR2(1000);
   V_SYS_DATE          varchar2(400);--DATE;
   V_LAST_WEEK        varchar2(400);--DATE;         
-  
+  V_W_START VARCHAR2(100);
+  V_W_END VARCHAR2(1000);
   BEGIN
   
     INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
@@ -2551,7 +3685,7 @@ PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
     
     
   
-  
+ 
    SELECT TO_CHAR(TRUNC(NEXT_DAY(TO_DATE(V_FILE_DATE,'DD-MON-RR'), 'THU')) - INTERVAL '7' DAY,'DD/MM') AS PREV_MONDAY,
                  TO_CHAR(TRUNC(NEXT_DAY(TO_DATE(V_FILE_DATE,'DD-MON-RR'), 'THU')) - INTERVAL '1' DAY,'DD/MM') AS NEXT_MON
        INTO V_LAST_WEEK,V_SYS_DATE
@@ -2560,10 +3694,23 @@ PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
                  TO_CHAR(TRUNC(NEXT_DAY(TO_DATE(V_FILE_DATE,'DD-MON-RR'), 'TUE')) - INTERVAL '1' DAY,'DD/MM') AS NEXT_MON
        INTO V_LAST_WEEK,V_SYS_DATE
   FROM DUAL;*/
+  
+  
+  SELECT TO_CHAR(TRUNC(TO_DATE(V_FILE_DATE, 'DD-MON-RR')) + INTERVAL '2' DAY,
+                 'dd-Mon-YYYY') AS PREV_THURSDAY
+    INTO V_W_START
+    FROM DUAL;
+
+SELECT TO_CHAR(TRUNC(TO_DATE(V_FILE_DATE, 'DD-MON-RR')) + INTERVAL '8' DAY,
+                 'dd-Mon-YYYY') AS PREV_THURSDAY
+    INTO V_W_END
+    FROM DUAL;
+
+   
 
      OPEN O_HEADER FOR
-     select 'Account id'  from dual 
-     union all
+     select 'ACCOUNT ID' FROM DUAL 
+     UNION ALL
     SELECT 'FREEZE/UNFREEZE' FROM DUAL
      UNION ALL
      SELECT 'Account Name' FROM DUAL
@@ -2572,7 +3719,9 @@ PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
      UNION ALL
       SELECT 'Uploaded Date' FROM DUAL
      UNION ALL
-      SELECT 'Submitted Status' FROM DUAL;
+      SELECT 'Submitted Status' FROM DUAL
+      UNION ALL
+      SELECT 'MAIL STATUS' FROM DUAL;
     /* UNION ALL
      SELECT 'ISU ID' FROM DUAL;*/
      
@@ -2594,25 +3743,143 @@ PROCEDURE SP_WKLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
     
    
      
- QRY :=' SELECT  DISTINCT t.account_id,  T.FREEZE_FLAG,
+ /*QRY :=' SELECT  DISTINCT  S.ACCOUNT_ID,T.FREEZE_FLAG,
           S.SHORT_NAME,
            DECODE(T.FILE_UPLOADED,''N'',''NOT UPLOADED'',''Y'',''UPLOADED''),
            TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-MON-RRRR''),
-           T.FREEZE_FLAG
+           T.FREEZE_FLAG,
+           decode(A.STATUS,''DELIVERED'',''Y'',''N'')
        
-  FROM WKLY_REP_FRZ_UNFRZ_BTG T, NEW_BTG_ACCOUNT_MAPPING S 
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T, NEW_BTG_ACCOUNT_MAPPING S,alert_email_outbox A
  WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
-    
+--    AND T.ISU_ID <> 263
      AND  T.ACCOUNT_ID = S.ACCOUNT_ID 
-     ORDER BY S.SHORT_NAME ASC ';
+     AND S.ACCOUNT_ID = A.ISU_ID
+     AND A.ALERT_ID = 613
+     ORDER BY S.SHORT_NAME ASC ';*/
+/* 
+QRY := 'select * from (SELECT  DISTINCT  S.ACCOUNT_ID, T.FREEZE_FLAG,
+         S.SHORT_NAME,
+            DECODE(T.FILE_UPLOADED,''N'',''NOT UPLOADED'',''Y'',''UPLOADED'') FILE_UPLOADED,
+           TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-MON-RRRR'')   UPLOADED_DATE,
+            T.FREEZE_FLAG Submitted_Status,
+          
+           decode(A.STATUS,''DELIVERED'',''Y'') MAIL_STATUS
+          --''Y''
+       
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T, NEW_BTG_ACCOUNT_MAPPING S,alert_email_outbox A
+ WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
+
+     AND  T.ACCOUNT_ID = S.ACCOUNT_ID 
+     AND S.ACCOUNT_ID = A.ISU_ID
+   AND A.ALERT_ID = 613
+    --AND DATESTAMP  >= '''||V_W_START||'''  AND  DATESTAMP <=  '''||V_W_END||''' 
+  --   ORDER BY S.SHORT_NAME ASC 
+     union all 
+     
+   select   DISTINCT  S.ACCOUNT_ID, T.FREEZE_FLAG,
+          S.SHORT_NAME,
+            DECODE(T.FILE_UPLOADED,''N'',''NOT UPLOADED'',''Y'',''UPLOADED'') FILE_UPLOADED,
+           TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-MON-RRRR'') UPLOADED_DATE,
+            T.FREEZE_FLAG Submitted_Status,
+          
+          -- decode(A.STATUS,''DELIVERED'',''Y'',''N'')
+         ''N'' MAIL_STATUS
+       
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T, NEW_BTG_ACCOUNT_MAPPING S,alert_email_outbox A
+ WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
+
+     AND  T.ACCOUNT_ID = S.ACCOUNT_ID 
+     AND A.ISU_ID <> T.ACCOUNT_ID 
+    AND S.ACCOUNT_ID NOT IN (SELECT  DISTINCT A.ISU_ID FROM alert_email_outbox A WHERE ALERT_ID = 613)
+   AND A.ALERT_ID = 613)
+   
+     ORDER BY SHORT_NAME ASC';*/
+     
+     
+     
+     QRY := 'select * from (SELECT  DISTINCT  S.ACCOUNT_ID, T.FREEZE_FLAG,
+         S.SHORT_NAME,
+            DECODE(T.FILE_UPLOADED,''N'',''NOT UPLOADED'',''Y'',''UPLOADED'') FILE_UPLOADED,
+           TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-MON-RRRR'')   UPLOADED_DATE,
+            T.FREEZE_FLAG Submitted_Status,
+          
+            decode(A.STATUS,''DELIVERED'',''Y'',''NEW'',''N'',''N'')  MAIL_STATUS
+          --''Y''
+       
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T, NEW_BTG_ACCOUNT_MAPPING S,(SELECT z.status,trim(REGEXP_SUBSTR( SUBSTR(MAIL_SUBJECT,16) 
+, ''[^:]+'', 1, 1)) aC FROM
+ ALERT_EMAIL_OUTBOX z WHERE ALERT_ID = 613 AND DATESTAMP  >= '''||V_W_START||'''  AND  DATESTAMP <=  '''||V_W_END||'''
+  ) a 
  
+  --alert_email_outbox A
+ WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
+ 
+AND  T.ACCOUNT_ID = S.ACCOUNT_ID 
+   AND S.short_name   = a.ac
+   
+   
+   UNION ALL
+   
+   
+   SELECT  DISTINCT  S.ACCOUNT_ID, T.FREEZE_FLAG,
+         S.SHORT_NAME,
+            DECODE(T.FILE_UPLOADED,''N'',''NOT UPLOADED'',''Y'',''UPLOADED'') FILE_UPLOADED,
+           TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-MON-RRRR'')   UPLOADED_DATE,
+            T.FREEZE_FLAG Submitted_Status,
+          
+            decode(A.STATUS,''DELIVERED'',''Y'',''NEW'',''N'')  MAIL_STATUS
+          --''Y''
+       
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T, NEW_BTG_ACCOUNT_MAPPING S,(SELECT z.status,trim(REGEXP_SUBSTR( SUBSTR(MAIL_SUBJECT,16) 
+, ''[^:]+'', 1, 1)) ac FROM
+ ALERT_EMAIL_OUTBOX_HISTORY z WHERE ALERT_ID = 613 AND DATESTAMP  >= '''||V_W_START||'''  AND  DATESTAMP <=  '''||V_W_END||'''
+  ) a 
+ 
+  --alert_email_outbox A
+ WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
+ 
+AND  T.ACCOUNT_ID = S.ACCOUNT_ID 
+   AND S.short_name   = a.ac
+   
+   UNION ALL
+     
+   select   DISTINCT  S.ACCOUNT_ID, T.FREEZE_FLAG,
+          S.SHORT_NAME,
+            DECODE(T.FILE_UPLOADED,''N'',''NOT UPLOADED'',''Y'',''UPLOADED'') FILE_UPLOADED,
+           TO_CHAR(TO_DATE(TRUNC(T.UPLOADED_DATE), ''DD-MON-RRRR''), ''DD-MON-RRRR'') UPLOADED_DATE,
+            T.FREEZE_FLAG Submitted_Status,
+          
+        
+         ''N'' MAIL_STATUS
+       
+  FROM WKLY_REP_FRZ_UNFRZ_BTG T, NEW_BTG_ACCOUNT_MAPPING S,alert_email_outbox A,alert_email_outbox_HISTORY T 
+ WHERE T.FILE_DATE = '''||V_FILE_DATE||'''
+
+     AND  T.ACCOUNT_ID = S.ACCOUNT_ID 
+    
+    AND S.SHORT_NAME  NOT IN (SELECT  DISTINCT trim(REGEXP_SUBSTR( SUBSTR(MAIL_SUBJECT,16) 
+, ''[^:]+'', 1, 1)) FROM alert_email_outbox A WHERE ALERT_ID = 613
+    AND  DATESTAMP  >= '''||V_W_START||'''  AND  DATESTAMP <=  '''||V_W_END||''')
+    AND S.SHORT_NAME  NOT IN  (SELECT  DISTINCT trim(REGEXP_SUBSTR( SUBSTR(MAIL_SUBJECT,16) 
+, ''[^:]+'', 1, 1)) FROM alert_email_outbox_HISTORY  A WHERE ALERT_ID = 613
+  AND  DATESTAMP  >= '''||V_W_START||'''  AND  DATESTAMP <=  '''||V_W_END||''')
+   AND A.ALERT_ID = 613)
+   ORDER BY SHORT_NAME ASC 
+   
+   
+  
+  ';
+  
+     DELETE FROM X_TST_1; COMMIT;
+     INSERT INTO X_TST_1 VALUES (QRY);
+     COMMIT;
 
  OPEN O_DATA FOR QRY;
 
  O_VAR_DATA:='WSR Status Dashboard for the week of '||V_LAST_WEEK||' to '||V_SYS_DATE||'';
  
   END SP_WKLY_GRID_BTG;
-
 
 PROCEDURE SP_BTG_SUBMISSION_MAIL(I_EMP_ID  IN NUMBER,
                               I_ISU_ID  IN NUMBER,                                                        
@@ -2626,11 +3893,12 @@ PROCEDURE SP_BTG_SUBMISSION_MAIL(I_EMP_ID  IN NUMBER,
    V_OPP               VARCHAR2(1000);
    V_DEL_EMAIL          VARCHAR2(1000);
     V_UNIT_CHK        NUMBER;
-    V_FROM_ID         NUMBER;
-    V_DEL_ID          NUMBER;
     V_COL_FORMULA_SUMMARY VARCHAR2(4000);
   V_BODY             VARCHAR2(1000);
   V_DEAR             VARCHAR2(200);
+  V_SAL              VARCHAR2(600);
+  V_C8               VARCHAR2(500);
+  
   V_MAIN_BODY        clob;
   V_THANKS           VARCHAR2(2000);
   V_FILE_DATE        VARCHAR2(200);
@@ -2639,8 +3907,6 @@ PROCEDURE SP_BTG_SUBMISSION_MAIL(I_EMP_ID  IN NUMBER,
   V_CURR_QTR         VARCHAR2(1000);
   V_EMP_NAME        VARCHAR2(1000);
   V_CURR_MONTH       DATE;
-   V_SAL              VARCHAR2(600);
-  V_C8               VARCHAR2(500);
   V_LAST_WEEK        VARCHAR2(400);--DATE;
   V_CLUS_ID          NUMBER;
   V_ACCOUNT          NUMBER;
@@ -2748,7 +4014,7 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
     
       COMMIT;
   
-  IF I_ALERT# = 489 THEN
+  IF I_ALERT# = 613  THEN
   
     DELETE FROM ALERT_EMAIL_OUTBOX
      WHERE ALERT_ID = I_ALERT#
@@ -2804,9 +4070,8 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
                                                      ''“'',
                                                      CHR(208),
                                                      
-                                                     ''–'',
                                                      ''”'',
-                                                     ''–'',
+                                                    
                                                      ''~'',
                                                      ''’'',
                                                      ''?''),
@@ -2823,38 +4088,16 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
                                                   '''',
                                                   '''',
                                                   '''',
-                                                  '''',
                                                   
                                                   '''',
-                                                  '''',
+                                                 
                                                   '''',
                                                   '''''''',
                                                   ''''
                                                   
                                                   ))';
 
-  /*  
-    OPEN  V_CUR_DATA_SUMMARY FOR 
-    
-     SELECT (SELECT DISTINCT (SHORT_NAME) SHORT_NAME FROM NEW_BTG_ACCOUNT_MAPPING M WHERE M.ACCOUNT_ID=T.ACCOUNT_ID) ACCOUNT_NAME,ACCOUNT_ID FROM BTG_EXECUTIVE_SUMMARY_TGT T WHERE T.FILE_DATE = V_FILE_DATE
-     AND T.ACCOUNT_ID = V_ACCOUNT;
-          V_TABLE_CONTENT3:= '<font style="font-family:Cambria;font-size: 16px;"size="2";><b><u>Executive Summary:</u></b><br><br>';
-          LOOP
-            FETCH V_CUR_DATA_SUMMARY
-              INTO V_C1,V_C2
-                  
-                   ;
-                
-            V_COUNT := V_CUR_DATA_SUMMARY%ROWCOUNT;
-             
-            EXIT WHEN V_CUR_DATA_SUMMARY% NOTFOUND;
-                      
-              V_TABLE_CONTENT3 := V_TABLE_CONTENT3 || '
-              <ul><b>'||V_C1||'</b>
-              <ul>';
-              */
-              
-   -------------------------------------------------------------
+ 
    
      QRY := 'SELECT  REPLACE(REPLACE(REPLACE(REPLACE(T.SUMMARY,''`'',Q''<''>''),''â€œ'',''''),''â€'',''''),''“'','''')   FROM BTG_EXECUTIVE_SUMMARY_TGT T WHERE T.FILE_DATE=''' ||V_FILE_DATE|| '''
        AND  T.IOU_ID IN (' ||I_ISU_ID || ')
@@ -2897,6 +4140,10 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
       AND T.SUMMARY IS NOT NULL 
       AND T.SUMMARY <> ''-'' 
       ORDER BY ORDER_ID';
+      DELETE FROM X_TST_1;
+      COMMIT;
+      INSERT INTO X_TST_1 VALUES(QRY);
+      COMMIT;
       OPEN V_DATA_CUR FOR qry;
     
       LOOP
@@ -2998,8 +4245,8 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
       ----delegate email id----                 
             BEGIN
             
-                    SELECT L.EMAIL_ADDRESS,L.EMP_ID INTO
-                                      V_DEL_EMAIL,V_DEL_ID  FROM  WEEKLY_REPORT_USER_DETAILS_BTG L 
+                    SELECT L.EMAIL_ADDRESS INTO
+                                      V_DEL_EMAIL  FROM  WEEKLY_REPORT_USER_DETAILS_BTG L 
                        WHERE   L.EMP_ID = I_EMP_ID AND  L.UNIT_ID = V_ACCOUNT ;      
                        
                        
@@ -3013,7 +4260,7 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
           SELECT T.UNIT_ID INTO V_UNIT_CHK FROM 
           WEEKLY_REPORT_USER_DETAILS_BTG T WHERE T.EMP_ID =I_EMP_ID AND T.UNIT_ID = V_ACCOUNT;              
                            
-           SELECT L.EMAIL_ADDRESS,L.EMP_ID INTO V_FROM_ID_SEND,V_FROM_ID
+           SELECT L.EMAIL_ADDRESS INTO V_FROM_ID_SEND
                       FROM  WEEKLY_REPORT_USER_DETAILS_BTG L 
                        WHERE  L.PRIMARY_SECONDARY_FLAG = 'Y' AND L.UNIT_ID = V_ACCOUNT  ; 
       
@@ -3143,7 +4390,7 @@ INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
                                                      Chr(13),
                                                      chr(9),
                                                      CHR(146),
-                                                     CHR(149),
+                                                    CHR(149), 
                                                      '`',
                                                      'â€œ',
                                                      'â€',
@@ -3584,16 +4831,16 @@ order by group_customer);
      OPEN  V_CUR_DATA_PIPE FOR     
      
          SELECT  DISTINCT CRM_ID, group_client GC,
-   ACCOUNT_ID, group_client,sales_stage  FROM WKLY_BTG_PIPELINE_TGT T WHERE T.FILE_DATE =V_FILE_DATE
-     AND T.ACCOUNT_ID = V_ACCOUNT 
-     AND SUBSTR(T.SALES_STAGE, 1, 2) IN (0,1,2, 3, 4, 5, 6, 7, 8)
+   ACCOUNT_ID, group_client,sales_stage FROM WKLY_BTG_PIPELINE_TGT T WHERE T.FILE_DATE =V_FILE_DATE
+     AND T.ACCOUNT_ID = V_ACCOUNT  
+     and substr(t.sales_stage,1,2) in (0,1,2,3,4,5,6,7,8) 
 
      order by Group_Client;
          V_TABLE_CONTENT2:= '<b><u>The top opportunities (in pipeline) as follows :</u></b><br><br><ul>';
           
           LOOP
             FETCH V_CUR_DATA_PIPE
-              INTO V_OPP,V_C1,V_C2,V_GC1,V_SAL
+              INTO V_OPP,V_C1,V_C2,V_GC1,V_SAl
                   
                    ;
                 
@@ -3611,8 +4858,8 @@ order by group_customer);
               OPEN  V_CUR_DATA1 FOR
                SELECT 
    T.OPPORTUNITY_NAME,
-   T.OPP_DESCRIPTION,round(T.deal_value,2) ,
-     T.CLOSURE_MONTH,SUBSTR(SALES_STAGE,1,2), FN_MULTIPLE_REPLACE(Status_update,
+   T.OPP_DESCRIPTION,ROUND(T.DEAL_VALUE,2),
+     T.CLOSURE_MONTH,SUBSTR(SALES_STAGE,1,2),FN_MULTIPLE_REPLACE(Status_update,
                                           NEW T_TEXT(chr(10),
                                                      Chr(13),
                                                      chr(9),
@@ -3653,7 +4900,7 @@ order by group_customer);
                                                   )) FROM WKLY_BTG_PIPELINE_TGT T WHERE T.FILE_DATE = V_FILE_DATE
       AND T.ACCOUNT_ID= V_C2
      AND T.GROUP_CLIENT = V_GC1
-      AND T.SALES_STAGE=V_SAL
+     AND T.SALES_STAGE=V_SAL
      AND T.CRM_ID = V_OPP;
      
      LOOP
@@ -3758,24 +5005,18 @@ AND I.ACCOUNT_ID = '||V_ACCOUNT||'
       INSERT INto X_TST_6 VALUES (QRY);
       COMMIT;
        EXECUTE IMMEDIATE QRY INTO O_FILE_NAME;
-       IF V_FROM_ID <> V_DEL_ID THEN
        IF V_ACCOUNT IN (5699,5698) THEN
        
-          V_CC:=V_FROM_ID_SEND||',alex.duraisamy@tcs.com,mathews.koshy@tcs.com,gopalakrishnan.balakrishnan@tcs.com,'||V_DEL_EMAIL;
+          V_CC:=V_FROM_ID_SEND||',alex.duraisamy@tcs.com,mathews.koshy@tcs.com,mayur.mahajan@tcs.com,gopalakrishnan.balakrishnan@tcs.com,'||V_DEL_EMAIL;
           
           ELSE
        
-       V_CC:=V_FROM_ID_SEND||',alex.duraisamy@tcs.com,mathews.koshy@tcs.com,'||V_DEL_EMAIL;
+       V_CC:=V_FROM_ID_SEND||',alex.duraisamy@tcs.com,mathews.koshy@tcs.com,mayur.mahajan@tcs.com,'||V_DEL_EMAIL;
        
        END IF;
-      ELSE
-        
-       V_CC:=V_FROM_ID_SEND||',alex.duraisamy@tcs.com,mathews.koshy@tcs.com';
-       END IF;
-      
      /*SELECT L.EMAIL_ADDRESS INTO V_FROM_ID_SEND    FROM  WEEKLY_REPORT_USER_DETAILS_BTG L
       WHERE L.EMP_ID = I_EMP_ID ;  */
-   
+   V_TO := 'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com';
     INSERT INTO ALERT_EMAIL_OUTBOX
        VALUES
       (SEQ_EMAIL_OUTBOX.NEXTVAL,
@@ -3784,13 +5025,13 @@ AND I.ACCOUNT_ID = '||V_ACCOUNT||'
        V_FROM_ID_SEND,
        V_TO,---'mathews.koshy@tcs.com,thulasiraman.j@tcs.com',---
        '', 
-       V_CC,--- 'siddharth.jain8@tcs.com,premcharan.s@tcs.com',
+       'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com,nandhini.thangavel1@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com',--- 'siddharth.jain8@tcs.com,premcharan.s@tcs.com',
        '',
-       'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com,nandhini.thangavel1@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com,sokitha.k5@tcs.com,l.shreyas@tcs.com',
+       'sruthi.balasubramanian@tcs.com,g.nishashanthi@tcs.com,nandhini.thangavel1@tcs.com,gopivenkatarajareddy.gundareedy@tcs.com',
        '',
        V_SUBJECT,
        V_MAIN_BODY,
-       'E:\\PMOUxData\\WeeklyStatusReport\\'||I_EMP_ID||'\\'||O_FILE_NAME||'.xlsx',
+       'D:\\PMOUxData\\WeeklyStatusReport\\'||I_EMP_ID||'\\'||O_FILE_NAME||'.xlsx',
        'NEW',
        '',
        I_ISU_ID);
@@ -3799,6 +5040,15 @@ AND I.ACCOUNT_ID = '||V_ACCOUNT||'
     -----,
       UPDATE WKLY_REP_FRZ_UNFRZ_BTG T SET T.FREEZE_FLAG='Y',
        T.FREEZED_DATE=SYSDATE 
+      WHERE 
+      T.ACCOUNT_ID =V_ACCOUNT
+      AND T.FILE_DATE=V_FILE_DATE;
+      COMMIT;
+      
+      --UPDATING FOR MONTHLY STATUS 
+      
+      UPDATE WKLY_REP_FRZ_UNFRZ_BTG T SET T.M_FREEZE_FLAG='Y',
+       T.M_FREEZED_DATE=SYSDATE 
       WHERE 
       T.ACCOUNT_ID =V_ACCOUNT
       AND T.FILE_DATE=V_FILE_DATE;
@@ -3812,11 +5062,9 @@ AND I.ACCOUNT_ID = '||V_ACCOUNT||'
 
 
   
-end SP_BTG_SUBMISSION_MAIL;
+end SP_BTG_SUBMISSION_MAIL; 
 
-  
-  
-procedurE SP_WSR_TEMPLATE(I_EMP_ID        IN NUMBER,
+PROCEDURE SP_WSR_TEMPLATE(I_EMP_ID        IN NUMBER,
                             I_CORP_ID       IN NUMBER,
                             I_BG_ID         IN VARCHAR2,
                             I_ISU_ID        IN VARCHAR2,
@@ -3842,7 +5090,6 @@ procedurE SP_WSR_TEMPLATE(I_EMP_ID        IN NUMBER,
     V_CUT         NUMBER;
      V_REPORT      VARCHAR2(4000);
     V_GC           VARCHAR2(4000);
-    V_COL_ADD_6   varchar2(4000);
     V_FROM_DATE   DATE;
     V_TO_DATE     DATE;
     V_MEET_RES VARCHAR2(1000);
@@ -3933,7 +5180,8 @@ procedurE SP_WSR_TEMPLATE(I_EMP_ID        IN NUMBER,
       V_COL_ADD_1 VARCHAR2(1000);
       
       v_col_add_2 varchar2(1000);
-           V_FY_ITG NUMBER;
+      V_COL_ADD_6 VARCHAR2(1000);
+     V_FY_ITG NUMBER;
      V_COND_8 VARCHAR2(1000);
       V_COND_9 VARCHAR2(1000);
       v_dist varchar2(1000);
@@ -3961,6 +5209,7 @@ procedurE SP_WSR_TEMPLATE(I_EMP_ID        IN NUMBER,
   BEGIN
     BEGIN
       V_PERIOD  := TO_DATE(I_FILE_DATE, 'DD-MM-RRRR');
+     /* V_LAST_WEEK_PERIOD := TO_CHAR(TO_DATE(V_PERIOD,'DD-MON-RR') - 7,'DD-MON-RR');*/
   
       V_PRV_QTR := FN_FETCH_PRV_QTR(IN_DATE => V_PERIOD);
       
@@ -3977,6 +5226,7 @@ procedurE SP_WSR_TEMPLATE(I_EMP_ID        IN NUMBER,
                                                
     V_CUR_QTR_HC_HDR  := FN_FETCH_QTR(IN_DATE => V_PERIOD);
     V_PRV_QTR_HC_HDR  := FN_FETCH_PRV_QTR(IN_DATE => V_PERIOD);
+    
     
     
    ---------- YEAR START DATE AND END DATE CHECKING--------
@@ -4011,6 +5261,9 @@ procedurE SP_WSR_TEMPLATE(I_EMP_ID        IN NUMBER,
     ---------------------------------------------------                  
            V_CUR_QTR_PL := SUBSTR(V_CUR_QTR_HC_HDR, 1, 2) || Q'< ->' ||
                       SUBSTR(V_CUR_QTR_HC_HDR, -2, 2);
+           --- FOR ITG FINANCILA YEAR            
+            /*SELECT SUBSTR(V_CUR_QTR_PL,-2,2) INTO            
+                      V_FY_ITG FROM DUAL;*/
       V_PRV_QTR_PL := SUBSTR(V_PRV_QTR_HC_HDR, 1, 2) || Q'< ->' ||
                       SUBSTR(V_PRV_QTR_HC_HDR, -2, 2);     
    -------------------------------------------------------                           
@@ -4046,6 +5299,7 @@ INTO V_MON1_ST_DATE,V_MON2_ST_DATE,V_MON3_ST_DATE
 from dual;
 
 
+
     
       QRY := 'SELECT ADD_MONTHS(TO_DATE(''' || V_LAST_MON ||
              ''', ''DD-MON-RRRR''), -2) FROM DUAL';
@@ -4059,11 +5313,11 @@ from dual;
       EXECUTE IMMEDIATE QRY
         INTO V_SECOND_MON;
         
- select sum(T.EMPLOYEE_COUNT) INTO V_PRO1 from HC_DSBD_EMPLOYEE_DTS_BTG_AGG T
+             select SUM(T.EMPLOYEE_COUNT) INTO V_PRO1 from HC_DSBD_EMPLOYEE_DTS_BTG_AGG T
  WHERE T.PERIOD_FREQUENCY = 'M-O-M'
   AND T.PERIOD =  V_MON2_ST_DATE ;
   
-    select sum(T.EMPLOYEE_COUNT) INTO V_PRO2 from HC_DSBD_EMPLOYEE_DTS_BTG_AGG T
+    select SUM(T.EMPLOYEE_COUNT) INTO V_PRO2 from HC_DSBD_EMPLOYEE_DTS_BTG_AGG T
  WHERE T.PERIOD_FREQUENCY = 'M-O-M'
   AND T.PERIOD = V_MON3_ST_DATE ;
   
@@ -4078,14 +5332,14 @@ from dual;
     ELSE 
        V_PR1_APP := '(A)';
        
-  update WKLY_HC_BTG_TGT T SET T.Mon1_Exit = (select sum(employee_count) from HC_DSBD_EMPLOYEE_DTS_BTG_AGG t
+          update WKLY_HC_BTG_TGT T SET T.Mon1_Exit = (select sum(employee_count) from HC_DSBD_EMPLOYEE_DTS_BTG_AGG t
  WHERE T.PERIOD_FREQUENCY = 'M-O-M'
   AND T.PERIOD = V_MON2_ST_DATE
  
  AND (T.IOU,REPLACE(REPLACE(T.SUB_IOU,'-',' '),' ',''),T.LARGE_CUSTOMER) IN (SELECT DISTINCT M.IOU,REPLACE(REPLACE(M.SUB_IOU,'-',' '),' ',''),M.GROUP_CUSTOMER FROM NEW_BTG_ACCOUNT_MAPPING M 
                                              WHERE 1=1 AND M.iou_id = I_ISU_ID
                                              AND M.SUB_IOU_ID = I_CLUS_ID
-                                             AND M.Account_Id=I_ACC_ID))
+                                             AND M.Account_Id=I_ACC_ID)) 
                                              Where t.file_date=(select max(t.file_date) from WKLY_HC_BTG_TGT T where t.account_id=I_ACC_ID)
                                              AND t.iou_id= I_ISU_ID
                                              AND t.sub_iou_id= I_CLUS_ID
@@ -4093,7 +5347,7 @@ from dual;
        COMMIT;
        END IF; 
        
-        IF V_PRO2 = 0 OR V_PRO2 IS NULL  THEN
+        IF V_PRO2 = 0 THEN
     V_PR2_APP := '(P)'; 
     ELSE 
        V_PR2_APP := '(A)';
@@ -4155,11 +5409,10 @@ from dual;
        
     
       
-      V_TCV_HDR1:= 'Q1FY'||v_fy|| V_TCV1_HDR;
-      V_TCV_HDR2:='Q2FY'|| V_FY|| V_TCV2_HDR;
-      V_TCV_HDR3:='Q3FY'|| V_FY|| V_TCV3_HDR;
-      V_TCV_HDR4:='Q4FY'||V_FY|| 'Projection';
-      
+      V_TCV_HDR1:= 'Q1FY'||v_fy ||V_TCV1_HDR;
+      V_TCV_HDR2:='Q2FY'|| V_FY || V_TCV2_HDR;
+      V_TCV_HDR3:='Q3FY'|| V_FY ||V_TCV3_HDR;
+      V_TCV_HDR4:='Q4FY'||V_FY || 'Projection';
       
       
       V_TCV_FINAL := 'FY'||V_FY||'Total';
@@ -4289,8 +5542,7 @@ from dual;
       
       
       
-      
-      
+        
       --V_ACTUAL_HDR := 'Actual';
       
        IF (TRIM(UPPER(I_REPORT_NAME)) = 'TEMPLATE') THEN
@@ -4340,6 +5592,13 @@ from dual;
  AND ACCOUNT_ID = ' || I_ACC_ID || '';
       
       END IF;
+      
+      
+   /*   SELECT COUNT(1) INTO V_STAR FROM WKLY_REP_FRZ_UNFRZ_BTG M WHERE M.ACCOUNT_ID IN  
+              (SELECT DISTINCT T.ACCOUNT_ID 
+              FROM NEW_BTG_ACCOUNT_MAPPING T WHERE  V_COND 
+              AND M.FILE_UPLOADED='N'  AND M.FILE_DATE=V_FILE_DATE;
+*/
     
       IF TRIM(UPPER(I_REPORT_NAME)) = 'TEMPLATE' THEN
         V_COL_FORMULA := 'FN_MULTIPLE_REPLACE(COLUMN_FORMULA,
@@ -4490,7 +5749,9 @@ from dual;
           
            V_SELECT      := 'LEVEL_1_HDR||''$$''||LEVEL_1_HDR_COLOR COL1';
            
-          IF UPPER(I_REPORT_NAME) = 'TEMPLATE' THEN 
+           
+           IF UPPER(I_REPORT_NAME) = 'TEMPLATE' THEN 
+             
            
              QRY := 'select emp_id, 
 emp_name, 
@@ -4501,26 +5762,16 @@ active_role
              t.file_date = (select max(file_date) from wkly_itg_sales_tgt WHERE 1=1
               ' || V_COND || '  ) 
              ' || V_COND || ' ';
-             
-             
-             ELSE 
-               QRY := ' SELECT (SELECT SHORT_NAME FROM NEW_BTG_ACCOUNT_MAPPING K WHERE K.ACCOUNT_ID = T.ACCOUNT_ID )ACCOUNT_NAME  emp_id, 
-emp_name, 
-sales_itg, 
-itg_role, 
-active_role
- from wkly_itg_sales_tgt t where 
-             t.file_date = (select max(file_date) from wkly_itg_sales_tgt WHERE 1=1
-              ' || V_COND || '  ) 
-             ' || V_COND || ' ';
-             
              END IF;
-      IF UPPER(I_REPORT_NAME) = 'REPORT'
+  IF UPPER(I_REPORT_NAME) = 'REPORT'
     THEN 
     
-  
-   V_COL_ADD_6  := ' distinct (SELECT DISTINCT SHORT_NAME FROM NEW_BTG_ACCOUNT_MAPPING K WHERE  K.ACCOUNT_ID = T.ACCOUNT_ID)ACCCOUNT,';
-           
+                V_COL_ADD_6  := 'distinct(SELECT DISTINCT SHORT_NAME FROM NEW_BTG_ACCOUNT_MAPPING K WHERE  K.ACCOUNT_ID = T.ACCOUNT_ID)ACCOUNT,';
+              --  '';
+           ---   V_ORDER_BY := 'ORDER BY 1';
+            --  END IF;
+   -- V_COL_ADD_6 := '(SELECT DISTINCT IOU_SHORT_NAME FROM NEW_BTG_ACCOUNT_MAPPING K WHERE K.IOU_ID = T.IOU_ID ) IOU_NAME,';
+    
                 
        QRY := 'select '||V_COL_ADD_6||'
        emp_id, 
@@ -4549,8 +5800,18 @@ active_role
               
             ))';
             
-            END IF;         
+            END IF; 
              
+             
+   
+    
+    
+    
+    
+    
+    
+    
+     
         
         ELSIF  (TRIM(UPPER(I_SHEET_NAME)) LIKE '%HC%' AND I_GRID_COUNT IN (1,2)) THEN
         
@@ -4820,7 +6081,7 @@ FROM
  AND (T.IOU,REPLACE(REPLACE(T.SUB_IOU,''-'','' ''),'' '',''''),T.LARGE_CUSTOMER) IN (SELECT DISTINCT M.IOU,REPLACE(REPLACE(M.SUB_IOU,''-'','' ''),'' '',''''),M.GROUP_CUSTOMER FROM NEW_BTG_ACCOUNT_MAPPING M 
                                             WHERE 1=1 '||V_COND||'
                                              AND t.iou = m.iou
- and REPLACE(REPLACE(T.SUB_IOU,''-'','' ''),'' '','''') = REPLACE(REPLACE(M.SUB_IOU,''-'','' ''),'' '','''')
+ and t.sub_iou = m.sub_iou
  and t.large_customer = m.group_customer)
                                             
     
@@ -4830,10 +6091,10 @@ FROM
               ( select count(T.EMPLOYEE_NUMBER)  from HC_DSBD_EMPLOYEE_DTS_BTG_TGT t
  WHERE T.PERIOD_FREQUENCY = ''M-O-M''
   AND T.PERIOD = '''||V_MON3_ST_DATE||'''
-AND (T.IOU,REPLACE(REPLACE(T.SUB_IOU,''-'','' ''),'' '',''''),T.LARGE_CUSTOMER) IN (SELECT DISTINCT M.IOU,REPLACE(REPLACE(M.SUB_IOU,''-'','' ''),'' '',''''),M.GROUP_CUSTOMER FROM NEW_BTG_ACCOUNT_MAPPING M 
-                                            WHERE 1=1 '||V_COND||'
-                                             AND t.iou = m.iou
- and REPLACE(REPLACE(T.SUB_IOU,''-'','' ''),'' '','''') = REPLACE(REPLACE(M.SUB_IOU,''-'','' ''),'' '','''')
+ AND (T.IOU,T.SUB_IOU,T.LARGE_CUSTOMER) IN (SELECT DISTINCT M.IOU,M.SUB_IOU,M.GROUP_CUSTOMER FROM NEW_BTG_ACCOUNT_MAPPING M 
+                                             WHERE 1=1 '||V_COND||'
+                                              AND t.iou = m.iou
+ and t.sub_iou = m.sub_iou
  and t.large_customer = m.group_customer)
          
                   '||V_COND||'                                        
@@ -4868,7 +6129,7 @@ FROM BTG_WKLY_PL_TGT S
 WHERE S.QUARTER = /* ''' || V_CUR_QTR || '''*/'''||V_CUR_QTR_HC_HDR||'''
   ' || V_COND || '
 AND 
-S.FILE_DATE '||V_GRT_COND1||V_GRT_COND||'= ''' || V_PERIOD || ''' 
+S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || ''' 
  GROUP BY IoU_ID,sub_iou_id,account_id) ))  GROUP BY SHORT_NAME,IOU_ID
 
  ) D
@@ -5186,9 +6447,9 @@ FROM btg_WKLY_PL_TGT S
                                                     WHERE o.QUARTER = ''' ||
                  V_CUR_QTR || '''
                                                          
-                                                      AND (o.FILE_DATE '||V_GRT_COND||'= ''' ||
+                                                      AND o.FILE_DATE '||V_GRT_COND||'= ''' ||
                                                       
-                 V_PERIOD || ''' or O.FILE_DATE = '''||V_LAST_WEEK_PERIOD||''')
+                 V_PERIOD || '''
                /*   and  o.account_id in (5601,5699,5587,5603,5600,5602,5698,5592)*/
                                                    GROUP BY IoU_ID,sub_iou_id,account_id)
                                              AND UPPER(s.PERIOD) = UPPER('''||V_CUR_QTR_PL||' Outlook'')
@@ -5530,8 +6791,8 @@ FROM btg_WKLY_PL_TGT S
                  AND IOU_ID = '||I_ISU_ID||'
                                 '||V_APPEND_QRY||'
                                                          
-                                                      AND (o.FILE_DATE '||V_GRT_COND||'= ''' ||
-                 V_PERIOD || ''' OR O.FILE_DATE = '''||V_LAST_WEEK_PERIOD||''')
+                                                      AND o.FILE_DATE '||V_GRT_COND||'= ''' ||
+                 V_PERIOD || '''
                                                    GROUP BY IoU_ID,sub_iou_id,account_id)
                                              AND UPPER(s.PERIOD) = UPPER('''||V_CUR_QTR_PL||' Outlook'')
                                              AND UPPER(s.PERIOD) NOT LIKE ''%CORP%'')Z
@@ -5822,7 +7083,7 @@ TO_CHAR(Z.REMARKS) REMARKS   FROM
           V_SELECT      := 'LEVEL_1_HDR||''$$''||LEVEL_1_HDR_COLOR COL1
                    --LEVEL_2_HDR||''$$''||LEVEL_2_HDR_COLOR COL2';
           O_NO_OF_INDEX := 0;
-          
+         
           IF UPPER(I_REPORT_NAME) = 'REPORT' THEN
           V_MEET_RES := '';
           ELSE
@@ -5856,44 +7117,240 @@ TO_CHAR(Z.REMARKS) REMARKS   FROM
         K.IOU_ID=D.IOU_ID) ISU_NAME,';
               V_ORDER_BY := 'ORDER BY ACCOUNT ASC';
               ELSE
-                V_COL_ADD  := 'DISTINCT';
+                V_COL_ADD  := '';
+                v_dist := 'distinct';
               V_ORDER_BY := 'ORDER BY 1';
               END IF;
             ELSE
               V_COL_ADD  := '';
               V_ORDER_BY := 'ORDER BY 1';
+              
             END IF;
           END IF;
-          
-          
-    IF (I_ISU_ID <> 0 AND I_CLUS_ID = 0 AND I_ACC_ID = 0) OR (I_ISU_ID <> 0 AND I_CLUS_ID <> 0 AND I_ACC_ID = 0)
-               OR (I_ISU_ID =  0 AND I_CLUS_ID =  0 AND I_ACC_ID = 0) THEN
-                --V_COL_ADD_1 := '(SELECT DISTINCT  IOU_SHORT_NAME FROM NEW_BTG_ACCOUNT_MAPPING T WHERE T.IOU_ID = K.IOU_ID) IOU_SHORT_NAME,';
-                v_col_add_2 := ' M.IOU_SHORT_NAME,';
+ ----THIS CODE FOR NEW CHANGES 
+ -----  
+ 
+ IF UPPER(I_REPORT_NAME) = 'TEMPLATE' THEN  
+   
+open v_cur_2 for
+
+
+
+ 
+  SELECT DISTINCT S.CATEGORY 
+    
+      FROM 
+       WKLY_CUSTOMER_VISIT_TGT_NAME S
+           WHERE S.IOU_ID = TRIM(I_ISU_ID)
+               AND TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') <=  TO_DATE(V_PERIOD, 'DD/MM/RRRR')
+               --TO_DATE(I_DATE, 'DD/MM/RRRR')
+                  
+               AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
+               AND S.ACCOUNT_ID = TRIM(I_ACC_ID) ;
                
-                  END IF;        
+         LOOP FETCH 
+          V_CUR_2 INTO 
+          V_CAT_CHK;
+EXIT WHEN V_CUR_2% NOTFOUND;   
+    
+               
+               
+                --- FOR CHECKING THE SENTIMENT IS ENTERED IF THE DATES ARE IN PAST DATES
+                
+        IF UPPER(V_CAT_CHK) LIKE '%VISITS%' THEN        
+        SELECT COUNT(1)
+          INTO V_CHK_SEN_1
+          FROM WKLY_CUSTOMER_VISIT_TGT_NAME S
+           WHERE S.IOU_ID = TRIM(I_ISU_ID)
+               AND TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') <= TO_DATE(V_PERIOD, 'DD/MM/RRRR')
+               --TO_DATE(i_date, 'DD/MM/RRRR')
+                  
+               AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
+               AND S.ACCOUNT_ID = TRIM(I_ACC_ID) AND 
+              
+              (TO_DATE(S.VISIT_START_DATE, 'DD/MM/RRRR') <= TO_DATE(SYSDATE, 'DD/MM/RRRR')
+              or TO_DATE( S.VISIT_END_DATE, 'DD/MM/RRRR') <= TO_DATE(SYSDATE, 'DD/MM/RRRR'))
+              AND S.SENTIMENTS IS NULL
+              
+              and upper(s.CATEGORY) = upper(v_cat_chk) 
+               
+               ;
+               
+               
+               END IF;
+               
+               
+         IF UPPER(V_CAT_CHK) LIKE '%CONNECT%' THEN        
+        SELECT COUNT(1)
+          INTO V_CHK_SEN_2
+          FROM WKLY_CUSTOMER_VISIT_TGT_NAME S
+           WHERE S.IOU_ID = TRIM(I_ISU_ID)
+               AND TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') <=TO_DATE(V_PERIOD, 'DD/MM/RRRR')
+                  
+               AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
+               AND S.ACCOUNT_ID = TRIM(I_ACC_ID) AND 
+              S.MEETING_DATE <= TO_DATE(SYSDATE, 'DD/MM/RRRR') 
+              AND S.SENTIMENTS IS NULL 
+              and upper(s.CATEGORY) = upper(v_cat_chk) 
+             
+               ;
+                
+           END IF;       
+           
+           
+           IF (V_CHK_SEN_1 <>0 OR V_CHK_SEN_2  <>0) AND UPPER(I_REPORT_NAME) = 'TEMPLATE'
+             THEN 
+              
+                 V_VISIT_PRE :='<';
+                   ELSE
+                  V_VISIT_PRE := '';
+             
+                
+                END IF;
+                
+                
+                
+                
+                 V_CUR_QTR := FN_FETCH_QTR(IN_DATE => V_PERIOD);
+          --  V_NEXT_QTR := fn_fetch_nxt_qtr(IN_DATE => V_PERIOD);
           
-  IF upper(I_REPORT_NAME)='TEMPLATE' THEN 
           
-        
- SELECT MAX(FILE_DATE) INTO V_DATE_10  FROM WKLY_CUSTOMER_VISIT_TGT_NAME
+           
+           
+           -------checking for future dates 
+              IF UPPER(V_CAT_CHK) LIKE '%VISITS%' THEN        
+        SELECT COUNT(1)
+          INTO V_CHK_SEN_3
+          FROM WKLY_CUSTOMER_VISIT_TGT_NAME S
+           WHERE S.IOU_ID = TRIM(I_ISU_ID)
+               AND TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') <= TO_DATE(V_PERIOD, 'DD/MM/RRRR')
+             --  V_PERIOD
+               --TO_DATE(i_date, 'DD/MM/RRRR')
+                  
+               AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
+               AND S.ACCOUNT_ID = TRIM(I_ACC_ID) AND 
+              
+              (TO_DATE(S.VISIT_START_DATE, 'DD/MM/RRRR') >= TO_DATE(SYSDATE, 'DD/MM/RRRR')
+              or TO_DATE( S.VISIT_END_DATE, 'DD/MM/RRRR') >= TO_DATE(SYSDATE, 'DD/MM/RRRR'))
+               and upper(s.CATEGORY) = upper(v_cat_chk)
+             AND S.SENTIMENTS IS NULL
+               
+               ;
+               
+               if V_CHK_SEN_3 <>0 then 
+               
+               select distinct MIN(s.visit_end_date) into v_visit_end_DATE  
+               FROM WKLY_CUSTOMER_VISIT_TGT_NAME S
+           WHERE S.IOU_ID = TRIM(I_ISU_ID)
+               AND TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') <= TO_DATE(V_PERIOD, 'DD/MM/RRRR')
+            
+               AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
+               AND S.ACCOUNT_ID = TRIM(I_ACC_ID) AND 
+                 
+             /* (TO_DATE(S.VISIT_START_DATE, 'DD/MM/RRRR') >= TO_DATE(SYSDATE, 'DD/MM/RRRR')
+              or*/ TO_DATE( S.VISIT_END_DATE, 'DD/MM/RRRR') >= TO_DATE(SYSDATE, 'DD/MM/RRRR')
+               and upper(s.CATEGORY) = upper(v_cat_chk)  ;
+               
+               
+            V_CUR_QTR_5 := FN_FETCH_QTR(IN_DATE => v_visit_end_DATE);   
+            
+            end if;
+               
+               END IF;
+               
+         IF UPPER(V_CAT_CHK) LIKE '%CONNECT%' THEN        
+        SELECT COUNT(1)
+          INTO V_CHK_SEN_4
+          FROM WKLY_CUSTOMER_VISIT_TGT_NAME S
+           WHERE S.IOU_ID = TRIM(I_ISU_ID)
+               AND TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') <= TO_DATE(V_PERIOD, 'DD/MM/RRRR')
+                  
+               AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
+               AND S.ACCOUNT_ID = TRIM(I_ACC_ID) AND 
+              S.MEETING_DATE >= TO_DATE(SYSDATE, 'DD/MM/RRRR') 
+               and upper(s.CATEGORY) = upper(v_cat_chk)
+              AND S.SENTIMENTS  IS NULL 
+             
+               ;
+               
+               if V_CHK_SEN_4 <>0 then 
+                 
+               
+               
+                select DISTINCT S.MEETING_DATE into v_visit_end_DATE  
+               FROM WKLY_CUSTOMER_VISIT_TGT_NAME S
+           WHERE S.IOU_ID = TRIM(I_ISU_ID)
+               AND TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') <= TO_DATE(V_PERIOD, 'DD/MM/RRRR')
+            
+               AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
+               AND S.ACCOUNT_ID = TRIM(I_ACC_ID) AND 
+                 
+             S.MEETING_DATE >= TO_DATE(SYSDATE, 'DD/MM/RRRR')
+             and upper(s.CATEGORY) = upper(v_cat_chk)  ;
+             
+               
+            V_CUR_QTR_5 := FN_FETCH_QTR(IN_DATE => v_visit_end_DATE);   
+              
+            end if;  
+           END IF;   
+              END LOOP;
+
+ 
+
+
+      CLOSE V_CUR_2;  
+            
+           END IF;   
+            
+          
+                
+         IF (V_CHK_SEN_3 <> 0 OR V_CHK_SEN_4  <> 0) AND UPPER(I_REPORT_NAME) = 'TEMPLATE'  
+       THEN    
+         
+       --V_VISIT_QTR := CONCAT(V_CUR_QTR,CONCAT(',',V_CUR_QTR_5)); 
+       --V_VISIT_QTR := CONCAT(V_CUR_QTR,CONCAT(char(39),CONCAT(',',CONCAT(char(39),V_CUR_QTR_5)))); 
+         V_VISIT_QTR := V_CUR_QTR||''','''||V_CUR_QTR_5 ;
+         V_VISIT_PRE :='<';
+                 
+       ELSE   
+          V_VISIT_QTR := V_CUR_QTR; 
+        --   V_VISIT_PRE :='<';
+          END IF;
+           
+     IF UPPER(I_REPORT_NAME) = 'TEMPLATE'  THEN       
+   SELECT MAX(FILE_DATE) INTO V_DATE_10  FROM WKLY_CUSTOMER_VISIT_TGT_NAME
                WHERE 1=1  
                   AND IOU_ID = IOU_ID AND SUB_IOU_ID =  I_CLUS_ID  AND ACCOUNT_ID = I_ACC_ID ;   
                   
-                  IF V_DATE_10 =  V_PERIOD THEN 
+                  IF V_DATE_10 =  V_PERIOD  THEN 
                     V_PRE := '';
                     ELSE
+                      
                       V_PRE := 'AND SENTIMENTS IS NULL';
                       END IF; 
-        ELSE
-        
-               V_PRE := '';
-               END IF;
+              ELSE 
+                SELECT MAX(FILE_DATE) INTO V_DATE_10  FROM WKLY_CUSTOMER_VISIT_TGT_NAME
+               WHERE 1=1  
+                  AND IOU_ID = IOU_ID AND SUB_IOU_ID =  I_CLUS_ID  AND ACCOUNT_ID = I_ACC_ID ;   
+                  
+                 -- IF V_DATE_10 =  V_PERIOD  THEN 
+                    V_PRE := '';
+                 --  END IF;  
+                      END IF;  
+                  
+               IF (I_ISU_ID <> 0 AND I_CLUS_ID = 0 AND I_ACC_ID = 0) OR (I_ISU_ID <> 0 AND I_CLUS_ID <> 0 AND I_ACC_ID = 0)
+              OR (I_ISU_ID =  0 AND I_CLUS_ID =  0 AND I_ACC_ID = 0) THEN
+                v_col_add_2 := 'distinct M.IOU_SHORT_NAME,';
+                ELSE
+                  V_COL_ADD_2 := '';
+                  END IF;
                
-                 
+                  --END IF;
+                 -- V_PRE := 'AND SENTIMENTS IS NULL';
                 
----------------
-          QRY := 'SELECT ' || V_COL_ADD || ' ACCOUNT,
+       IF UPPER(I_REPORT_NAME) = 'TEMPLATE' AND I_GRID_COUNT = 1 THEN  
+--------------------------------------------------
+       QRY := 'SELECT ' || V_COL_ADD || ' ACCOUNT,
             cust_name, 
 category, 
 tcs_partcipants_name, 
@@ -5909,7 +7366,7 @@ outcome FROM (SELECT
              WHERE 1=1               ' || V_COND || 
                  '
                   AND M.SHORT_NAME = T.ACCOUNT  
-                 and UPPER(M.Active) =''YES'' )Account,
+                 and UPPER(M.Active) =''YES'' /* AND M.IOU_ID <>263*/ )Account,
                       T.cust_name, 
 T.category, 
 T.tcs_partcipants_name, 
@@ -5927,13 +7384,15 @@ T.outcome,
                WHERE 1=1  
                   '||V_COND||') '||V_PRE||' 
                  ' || V_COND || ') ';
-              --  '||V_MEET_RES||' 
-  
-                   IF UPPER(I_REPORT_NAME) = 'REPORT'   THEN  
+   END IF;              
+                 
+                 
+                 
+ IF UPPER(I_REPORT_NAME) = 'REPORT'    THEN  
                    
                    
                    
-                 QRY := 'SELECT  '||V_COL_ADD||' ACCOUNT,
+                 QRY := 'SELECT  '||V_COL_ADD||V_dist||' ACCOUNT,
             cust_name, 
 category, 
 tcs_partcipants_name, 
@@ -5949,7 +7408,7 @@ outcome FROM (SELECT
              WHERE 1=1               ' || V_COND || 
                  '
                   AND M.SHORT_NAME = T.ACCOUNT  
-                 and UPPER(M.Active) =''YES''   )Account,
+                 and UPPER(M.Active) =''YES'' /* AND M.IOU_ID <>263 */)Account,
                       T.cust_name, 
 T.category, 
 T.tcs_partcipants_name, 
@@ -5962,23 +7421,18 @@ T.objective,
 T.outcome,
                     IOU_ID
                     
-                    
                 FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
-                
-                 WHERE TO_DATE(T.FILE_DATE, ''DD/MM/RRRR'') = TO_DATE('''||V_PERIOD||''', ''DD/MM/RRRR'')
+                WHERE TO_DATE(T.FILE_DATE, ''DD/MM/RRRR'') = TO_DATE('''||V_PERIOD||''', ''DD/MM/RRRR'')
             
                /*(SELECT MAX(FILE_DATE) FROM WKLY_CUSTOMER_VISIT_TGT_NAME
                WHERE 1=1  
                   '||V_COND||V_PRE||')*/ 
                   '||V_COND || ') D
                  
-             /*  WHERE T.FILE_DATE = ('''||V_PERIOD||''') '||V_PRE||' 
-                 ' || V_COND || ') D*/
-                 
                  
                  UNION ALL 
                  
-                 select distinct '||v_col_add_2||' M.SHORT_NAME,''-'',
+                 select '||v_col_add_2||V_dist||'  M.SHORT_NAME,''-'',
 ''-'' a ,
 ''-'' b ,
 ''-'',
@@ -5987,23 +7441,209 @@ TO_CHAR(''-'') c ,
 TO_CHAR(''-'') d ,
 TO_CHAR(''-'') e,''-'' F,''-'' G,''-'' H from NEW_BTG_ACCOUNT_MAPPING M
 WHERE 1=1           
-                  '||V_COND||' and UPPER(M.Active) =''YES'' 
-                  and m.account_id not in (select t.account_id FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
+                  '||V_COND||' and UPPER(M.Active) =''YES'' /*AND M.IOU_ID <>263*/
+                     
+                     
+                     
+ and m.account_id not in (select t.account_id FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
 WHERE 
 
  TO_DATE(T.FILE_DATE, ''DD/MM/RRRR'') = TO_DATE('''||V_PERIOD||''', ''DD/MM/RRRR'')
 /*(SELECT MAX(FILE_DATE)  FROM  WKLY_CUSTOMER_VISIT_TGT_NAME 
           WHERE 1=1           
                   '||V_COND||')*/ )';
-                     
-                     
-                     
- 
                  
-     END IF;                                  
+     END IF;            
+                 
+                 
+              --  '||V_MEET_RES||'
+  -- END IF;         
+           
+/*IF UPPER(I_REPORT_NAME) = 'REPORT' THEN 
+
+
+
+QRY := 'SELECT ' || V_COL_ADD || ' ACCOUNT,
+            cust_name, 
+category, 
+tcs_partcipants_name, 
+sentiments, 
+ TO_CHAR(MEETING_DATE,''DD-MON-YYYY''), 
+ TO_CHAR(visit_start_date,''DD-MON-YYYY''), 
+ TO_CHAR(visit_end_date,''DD-MON-YYYY''), 
+visit_location, 
+objective, 
+outcome FROM (SELECT
+                    (select distinct M.SHORT_NAME 
+                    from NEW_BTG_ACCOUNT_MAPPING M
+             WHERE 1=1               ' || V_COND || 
+                 '
+                  AND M.SHORT_NAME = T.ACCOUNT  
+                 and UPPER(M.Active) =''YES''  AND M.IOU_ID <>263 )Account,
+                      T.cust_name, 
+T.category, 
+T.tcs_partcipants_name, 
+T.sentiments, 
+ T.MEETING_DATE,
+T.visit_start_date, 
+T.visit_end_date, 
+T.visit_location, 
+T.objective, 
+T.outcome,
+                    IOU_ID
+                    
+                FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
+               WHERE T.FILE_DATE = '''||V_PERIOD||''' '||V_PRE||' 
+                 '|| V_COND || ') ';
+              --  '||V_MEET_RES||'
+            
 
         
-        ELSIF TRIM(UPPER(I_SHEET_NAME)) LIKE 'CLOSED' THEN
+          
+   END IF;       
+          */
+          
+          
+        ---- TO_CHAR(MEETING_DATE,''DD-MON-YYYY''),
+        ----CHANGES CODE
+        
+       /*       QRY := 'SELECT ' || V_COL_ADD || ' ACCOUNT,
+            cust_name, 
+category, 
+tcs_partcipants_name, 
+sentiments, 
+ TO_CHAR(MEETING_DATE,''DD-MON-YYYY''), 
+ TO_CHAR(visit_start_date,''DD-MON-YYYY''), 
+ TO_CHAR(visit_end_date,''DD-MON-YYYY''), 
+visit_location, 
+objective, 
+outcome FROM (SELECT
+                    (select distinct M.SHORT_NAME 
+                    from NEW_BTG_ACCOUNT_MAPPING M
+             WHERE 1=1               ' || V_COND || 
+                 '
+                  AND M.SHORT_NAME = T.ACCOUNT  
+                 and UPPER(M.Active) =''YES''  AND M.IOU_ID <>263 )Account,
+                      T.cust_name, 
+T.category, 
+T.tcs_partcipants_name, 
+T.sentiments, 
+ T.MEETING_DATE,
+T.visit_start_date, 
+T.visit_end_date, 
+T.visit_location, 
+T.objective, 
+T.outcome,
+                    IOU_ID
+                    
+                FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
+               WHERE T.FILE_DATE '||V_GRT_COND1||V_VISIT_PRE||'= ''' || V_PERIOD || '''
+                 ' || V_COND || '
+              --  '||V_MEET_RES||'
+             and (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
+(SELECT IOU_ID,SUB_IOU_ID,ACCOUNT_ID, MAX(FILE_DATE)
+FROM BTG_WKLY_PL_TGT S
+WHERE S.QUARTER IN (''' || V_VISIT_QTR || ''')
+              ' || V_COND || '
+AND S.FILE_DATE '||V_GRT_COND1||V_VISIT_PRE||'= ''' || V_PERIOD || '''
+ GROUP BY IoU_ID,sub_iou_id,account_id)
+           
+          UNION ALL
+select distinct M.SHORT_NAME,'''',
+'''' a ,
+'''' b ,
+'''',
+TO_DATE('''') c ,
+
+TO_DATE('''') d ,
+TO_DATE('''') e,'''' F,'''' G,'''' H,IOU_ID from NEW_BTG_ACCOUNT_MAPPING M
+WHERE 1=1               ' || V_COND || 
+                 ' and UPPER(M.Active) =''YES'' AND M.IOU_ID <>263
+and m.account_id not in (select t.account_id FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
+WHERE T.FILE_DATE '||V_VISIT_PRE||'= ''' || V_PERIOD || '''
+
+ and (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
+(SELECT IOU_ID,SUB_IOU_ID,ACCOUNT_ID, MAX(FILE_DATE)
+FROM BTG_WKLY_PL_TGT S
+WHERE S.QUARTER IN ( ''' || V_VISIT_QTR || ''')
+              ' || V_COND || '
+AND S.FILE_DATE '||V_VISIT_PRE||'= ''' || V_PERIOD || '''
+ GROUP BY IoU_ID,sub_iou_id,account_id))) D
+'||V_ORDER_BY||'';
+
+
+*/
+
+-----
+        
+        
+        
+        /*  QRY := 'SELECT ' || V_COL_ADD || ' ACCOUNT,
+            cust_name, 
+category, 
+tcs_partcipants_name, 
+sentiments, 
+ TO_CHAR(MEETING_DATE,''DD-MON-YYYY''), 
+ TO_CHAR(visit_start_date,''DD-MON-YYYY''), 
+ TO_CHAR(visit_end_date,''DD-MON-YYYY''), 
+visit_location, 
+objective, 
+outcome FROM (SELECT
+                    (select distinct M.SHORT_NAME 
+                    from NEW_BTG_ACCOUNT_MAPPING M
+             WHERE 1=1               ' || V_COND || 
+                 '
+                  AND M.SHORT_NAME = T.ACCOUNT  
+                 and UPPER(M.Active) =''YES''  AND M.IOU_ID <>263 )Account,
+                      T.cust_name, 
+T.category, 
+T.tcs_partcipants_name, 
+T.sentiments, 
+ T.MEETING_DATE,
+T.visit_start_date, 
+T.visit_end_date, 
+T.visit_location, 
+T.objective, 
+T.outcome,
+                    IOU_ID
+                    
+                FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
+               WHERE T.FILE_DATE '||V_GRT_COND1||V_GRT_COND||'= ''' || V_PERIOD || '''
+                 ' || V_COND || '
+                '||V_MEET_RES||'
+             and (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
+(SELECT IOU_ID,SUB_IOU_ID,ACCOUNT_ID, MAX(FILE_DATE)
+FROM BTG_WKLY_PL_TGT S
+WHERE S.QUARTER = ''' || V_CUR_QTR || '''
+              ' || V_COND || '
+AND S.FILE_DATE '||V_GRT_COND1||V_GRT_COND||'= ''' || V_PERIOD || '''
+ GROUP BY IoU_ID,sub_iou_id,account_id)
+           
+          UNION ALL
+select distinct M.SHORT_NAME,'''',
+'''' a ,
+'''' b ,
+'''',
+TO_DATE('''') c ,
+
+TO_DATE('''') d ,
+TO_DATE('''') e,'''' F,'''' G,'''' H,IOU_ID from NEW_BTG_ACCOUNT_MAPPING M
+WHERE 1=1               ' || V_COND || 
+                 ' and UPPER(M.Active) =''YES'' AND M.IOU_ID <>263
+and m.account_id not in (select t.account_id FROM WKLY_CUSTOMER_VISIT_TGT_NAME T
+WHERE T.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
+'||V_MEET_RES||'
+ and (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
+(SELECT IOU_ID,SUB_IOU_ID,ACCOUNT_ID, MAX(FILE_DATE)
+FROM BTG_WKLY_PL_TGT S
+WHERE S.QUARTER = ''' || V_CUR_QTR || '''
+              ' || V_COND || '
+AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
+ GROUP BY IoU_ID,sub_iou_id,account_id))) D
+'||V_ORDER_BY||'';
+        */
+        ELSIF TRIM(UPPER(I_SHEET_NAME)) LIKE 'CLOSED' 
+           AND (I_GRID_COUNT = 1 OR I_GRID_COUNT = 4)  THEN
         
           V_SELECT      := 'LEVEL_1_HDR||''$$''||LEVEL_1_HDR_COLOR COL1
                    --LEVEL_2_HDR||''$$''||LEVEL_2_HDR_COLOR COL2';
@@ -6434,6 +8074,7 @@ WHERE T.FILE_DATE = ''' || V_PERIOD || ''')) D';*/
         COMMIT;
         INSERT INTO HD_DUMMY VALUES(QRY);
         COMMIT;
+
          
           EXECUTE IMMEDIATE 'SELECT DECODE(COUNT(1), 0, ' || '''N''' || ', ' ||
                         '''Y''' || ') FROM(' || QRY || ')'
@@ -6526,7 +8167,7 @@ WHERE T.FILE_DATE = ''' || V_PERIOD || ''')) D';*/
                   FROM OPPORTUNITY_BTG_WSR O
                  WHERE O.DATESTAMP =
                        (SELECT MAX(DATESTAMP) FROM OPPORTUNITY_BTG_WSR)
-                   --   AND UPPER(CONFIDENTIAL_FLAG) = ''N''
+                   AND UPPER(CONFIDENTIAL_FLAG) = ''N''
                       AND (( (to_number(decode(O.OPPORTUNITY_VALUE_USD,''null'',0,OPPORTUNITY_VALUE_USD)) / 1000000)  > 49
               
                 
@@ -6692,7 +8333,186 @@ QRY := 'SELECT '||V_COL_ADD||' GROUP_CLIENT,
             )
         
          ORDER BY CONTRACT_VAL DESC)D
-         '||V_ORDER_BY||'';         
+         '||V_ORDER_BY||'';
+/*
+QRY := 'SELECT '||V_COL_ADD||' GROUP_CLIENT,
+       OPPORTUNITY_ID,
+       OPPORTUNITY_NAME,
+       OPP_DESCRIPTION,
+       SALES_STAGE,
+       CONTRACT_VAL,
+       RENEWAL_VALUE,
+       CLOSE_DATE,
+       BUYING_STAKEHOLDER,
+       SP,
+       PRIMARY_FOCUS,
+       PRIMARY_COMPETITOR,
+       STATUS_UPDATE  
+  FROM (SELECT DISTINCT SUBSTR(GROUP_CLIENT,16)GROUP_CLIENT,
+                        OPPORTUNITY_ID,
+                        OPPORTUNITY_NAME,
+                        OPP_DESCRIPTION,
+                        REPLACE(PRIMARY_COMPETITOR, ''#'', '','') PRIMARY_COMPETITOR,
+                        SALES_STAGE,
+                        F_PPT(CONTRACT_VAL, ''V12'') CONTRACT_VAL,
+                        F_PPT(RENEWAL_VALUE, ''V12'') RENEWAL_VALUE,
+                        STATUS_UPDATE,
+                        CLOSE_DATE,
+                        DECODE(INSTR(BUYING_STAKEHOLDER, ''(''),
+                               0,
+                               BUYING_STAKEHOLDER,
+                               SUBSTR(BUYING_STAKEHOLDER,
+                                      0,
+                                      INSTR(BUYING_STAKEHOLDER, ''('') - 1)) BUYING_STAKEHOLDER,
+                        SP,
+                        DECODE(PRIMARY_FOCUS,
+                               ''Cost & Optimization'',
+                               ''C&O Cost & Optimization'',
+                               ''Growth & Transformation'',
+                               ''G&T Growth & Transformation'',
+                               PRIMARY_FOCUS) PRIMARY_FOCUS,
+                               IOU_ID
+          FROM (SELECT DISTINCT T.CRM_ID  OPPORTUNITY_ID,
+                                T.GROUP_CLIENT,
+                                T.OPPORTUNITY_NAME,
+                                T.SALES_STAGE,
+                                TO_NUMBER(T.DEAL_VALUE) CONTRACT_VAL,
+                                T.CLOSURE_MONTH  CLOSE_DATE,
+                                T.SP,
+                                T.PRIMARY_COMPETITORS PRIMARY_COMPETITOR,
+                                T.BUYING_STAKEHOLDER,
+                                T.PRIMARY_FOCUS,
+                                T.RENEWAL_VALUE,
+                                T.OPP_DESCRIPTION,
+                                T.STATUS_UPDATE,
+                                T.IOU_ID
+                  FROM WKLY_BTG_PIPELINE_TGT T
+                 
+                 
+                 WHERE (T.IOU_ID,T.SUB_IOU_ID,T.ACCOUNT_ID, T.FILE_DATE) IN
+                       (SELECT S.IOU_ID,S.SUB_IOU_ID,S.ACCOUNT_ID, MAX(FILE_DATE)
+                          FROM BTG_WKLY_PL_TGT S
+                         WHERE S.QUARTER = ''' || V_CUR_QTR || '''
+                         ' || V_COND || '
+                         AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
+                        GROUP BY IOU_ID,SUB_IOU_ID,ACCOUNT_ID)
+              
+                 
+                  
+                UNION ALL
+                SELECT DISTINCT O.OPPORTUNITY_ID,
+                                O.GROUP_CLIENT,
+                                O.OPPORTUNITY_NAME,
+                                O.SALES_STAGE,
+                                (to_number(decode(O.OPPORTUNITY_VALUE_USD,''null'',0,OPPORTUNITY_VALUE_USD)) / 1000000) CONTRACT_VAL,
+                                TO_CHAR(TO_DATE(O.EXPECTED_CLOSE_DATE, ''DD-MON-YY''),
+                                        ''DD-MON-YYYY'') CLOSE_DATE,
+                                O.service_practices ,
+                                O.COMPETITORS,
+                                O.BUYING_STAKEHOLDER,
+                                O.PRIMARY_FOCUS,
+                                (to_number(decode(O.renewal_portion_of_tocv_usd,''null'',0,renewal_portion_of_tocv_usd)/ 1000000)) RENEWAL_VALUE,
+                                O.OPPORTUNITY_DESCRIPTION,
+                                '''' STATUS_UPDATE,
+                                TO_NUMBER(O.IOU_ID)
+                  FROM OPPORTUNITY_BTG_WSR O
+                 WHERE O.DATESTAMP =
+                       (SELECT MAX(DATESTAMP) FROM OPPORTUNITY_BTG_WSR)
+                AND  (to_number(decode(O.OPPORTUNITY_VALUE_USD,''null'',0,OPPORTUNITY_VALUE_USD)) / 1000000)  > 49
+                   AND SUBSTR(O.SALES_STAGE, 1, 2) IN (2, 3, 4, 5, 6, 7, 8)
+                   ' || V_COND || '
+                     AND O.ACCOUNT_ID IN (select distinct t.account_id from new_btg_account_mapping t\* WHERE T.IOU_ID <>263*\)
+                   AND O.OPPORTUNITY_ID NOT IN
+                       (SELECT T.CRM_ID
+                          FROM WKLY_BTG_PIPELINE_TGT T
+                         WHERE (T.IOU_ID,T.SUB_IOU_ID,T.ACCOUNT_ID,T.FILE_DATE) IN
+                               (SELECT S.IOU_ID,S.SUB_IOU_ID,ACCOUNT_ID, MAX(FILE_DATE)
+                                  FROM BTG_WKLY_PL_TGT S
+                                 WHERE S.QUARTER = ''' || V_CUR_QTR || '''
+                                 ' || V_COND || '
+                                 AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
+                                 GROUP BY IOU_ID,SUB_IOU_ID,ACCOUNT_ID)))
+        
+         ORDER BY CONTRACT_VAL DESC)D
+         '||V_ORDER_BY||'';*/
+         -- WRITTEN SEPERATE CODE FOR REPORT 
+      /*   ELSE
+           
+         QRY := 'SELECT '||V_COL_ADD||' GROUP_CLIENT,
+       OPPORTUNITY_ID,
+       OPPORTUNITY_NAME,
+       OPP_DESCRIPTION,
+       SALES_STAGE,
+       CONTRACT_VAL,
+       RENEWAL_VALUE,
+       CLOSE_DATE,
+       BUYING_STAKEHOLDER,
+       SP,
+       PRIMARY_FOCUS,
+       PRIMARY_COMPETITOR,
+       STATUS_UPDATE  
+  FROM (SELECT DISTINCT SUBSTR(GROUP_CLIENT,16)GROUP_CLIENT,
+                        OPPORTUNITY_ID,
+                        OPPORTUNITY_NAME,
+                        OPP_DESCRIPTION,
+                        REPLACE(PRIMARY_COMPETITOR, ''#'', '','') PRIMARY_COMPETITOR,
+                        SALES_STAGE,
+                        F_PPT(CONTRACT_VAL, ''V12'') CONTRACT_VAL,
+                        F_PPT(RENEWAL_VALUE, ''V12'') RENEWAL_VALUE,
+                        STATUS_UPDATE,
+                        CLOSE_DATE,
+                        DECODE(INSTR(BUYING_STAKEHOLDER, ''(''),
+                               0,
+                               BUYING_STAKEHOLDER,
+                               SUBSTR(BUYING_STAKEHOLDER,
+                                      0,
+                                      INSTR(BUYING_STAKEHOLDER, ''('') - 1)) BUYING_STAKEHOLDER,
+                        SP,
+                        DECODE(PRIMARY_FOCUS,
+                               ''Cost & Optimization'',
+                               ''C&O Cost & Optimization'',
+                               ''Growth & Transformation'',
+                               ''G&T Growth & Transformation'',
+                               PRIMARY_FOCUS) PRIMARY_FOCUS,
+                               IOU_ID
+          FROM (SELECT DISTINCT O.OPPORTUNITY_ID,
+                                O.GROUP_CLIENT,
+                                O.OPPORTUNITY_NAME,
+                                O.SALES_STAGE,
+                                (to_number(decode(O.OPPORTUNITY_VALUE_USD,''null'',0,OPPORTUNITY_VALUE_USD)) / 1000000) CONTRACT_VAL,
+                                TO_CHAR(TO_DATE(O.EXPECTED_CLOSE_DATE, ''DD-MON-YY''),
+                                        ''DD-MON-YYYY'') CLOSE_DATE,
+                                O.service_practices SP,
+                                O.COMPETITORS PRIMARY_COMPETITOR,
+                                O.BUYING_STAKEHOLDER,
+                                O.PRIMARY_FOCUS,
+                                (to_number(decode(O.renewal_portion_of_tocv_usd,''null'',0,renewal_portion_of_tocv_usd)/ 1000000)) RENEWAL_VALUE,
+                                O.OPPORTUNITY_DESCRIPTION OPP_DESCRIPTION,
+                                T.STATUS_UPDATE,
+                                O.IOU_ID
+                  FROM WKLY_BTG_PIPELINE_TGT T,
+                   OPPORTUNITY_BTG_WSR O
+                 WHERE (T.IOU_ID,T.SUB_IOU_ID,T.ACCOUNT_ID, T.FILE_DATE) IN
+                       (SELECT S.IOU_ID,S.SUB_IOU_ID,S.ACCOUNT_ID, MAX(FILE_DATE)
+                          FROM BTG_WKLY_PL_TGT S
+                         WHERE S.QUARTER = ''' || V_CUR_QTR || '''
+                         ' || V_COND || '
+                         AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
+                        GROUP BY IOU_ID,SUB_IOU_ID,ACCOUNT_ID)
+                   AND T.IOU_ID = O.IOU_ID
+                   AND T.SUB_IOU_ID = O.SUB_IOU_ID
+                   AND T.ACCOUNT_ID = O.ACCOUNT_ID
+                   AND T.CRM_ID = O.OPPORTUNITY_ID
+                  \*and  T.account_id in (5601,5699,5587,5603,5600,5602,5698,5592)*\
+                   AND O.DATESTAMP =
+                       (SELECT MAX(DATESTAMP) FROM OPPORTUNITY_BTG_WSR)
+                 ))';
+                   END IF;
+           */
+         
+       
+           
+         
          
          DELETE FROM X_TST_BA ;
          COMMIT ;
@@ -6706,7 +8526,21 @@ QRY := 'SELECT '||V_COL_ADD||' GROUP_CLIENT,
         IF (V_PIPE_CHECK ='N') /*AND (TRIM(UPPER(I_REPORT_NAME)) = 'TEMPLATE')*/
         THEN 
         
-    
+     /*   QRY:= '
+        SELECT ''-'',
+        ''-'',
+        ''-'',
+        ''-'',
+        ''-'',
+        ''-'',
+        ''-'',
+        ''-'' ,
+          ''-'',
+            ''-'',
+              ''-'',
+                ''-'',
+                  ''-'' FROM DUAL';
+        END IF;*/
         
          QRY := '
             SELECT DISTINCT '||V_COL_ADD||'  SUBSTR(GROUP_CUSTOMER,16),
@@ -6736,6 +8570,10 @@ QRY := 'SELECT '||V_COL_ADD||' GROUP_CLIENT,
           V_SELECT      := 'LEVEL_1_HDR||''$$''||LEVEL_1_HDR_COLOR COL1
 --LEVEL_2_HDR||''$$''||LEVEL_2_HDR_COLOR COL2';
           O_NO_OF_INDEX := 0;
+          
+           
+          
+          
           
           IF (TRIM(UPPER(I_REPORT_NAME)) = 'REPORT') THEN
             IF V_LEVEL_ID IN (-2, 6) THEN
@@ -6768,6 +8606,10 @@ QRY := 'SELECT '||V_COL_ADD||' GROUP_CLIENT,
     set column_editable = 'TRUE'
     WHERE header_id IN (84,83,85) and sheet_id = 107  and report_id = 1;
     COMMIT;
+       
+       
+       
+       
        
        ELSIF  V_QTR_CHK = 'Q2' THEN
           V_Q1 := '(SELECT to_char(round(TCV_BMN_USD)) FROM BTG_WKLY_PL_PMO_TGT 
@@ -6887,15 +8729,69 @@ WHERE S.QUARTER = ''' || V_CUR_QTR || '''
 AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
 group by iou_id,sub_iou_id,account_id)))D
 '||V_ORDER_BY||')';
+else 
 
+/*ELSIF UPPER(I_REPORT_NAME) = 'REPORT' THEN 
+  IF I_ACC_ID <> 0 THEN 
+    QRY := 'SELECT * FROM (SELECT  IOU,ACCOUNT,TO_CHAR(Q1) Q1,TO_CHAR(Q2) Q2,TO_CHAR(Q3),TO_CHAR(Q4) Q4,TO_CHAR(FY_PROJECTION) FROM (
+  SELECT (SELECT DISTINCT iou_short_name FROM NEW_BTG_ACCOUNT_MAPPING K WHERE  K.IOU_ID=D.IOU_ID) IOU,
+(SELECT DISTINCT short_name FROM NEW_BTG_ACCOUNT_MAPPING K WHERE  K.account_id=D.account_id ) ACCOUNT,
+SUM(Q1_PROJECTION) Q1,SUM(Q2_PROJECTION) Q2, SUM(Q3_PROJECTION) Q3,SUM(Q4FY_PROJECTION) Q4,
+SUM(Q1_PROJECTION+Q2_PROJECTION
++Q3_PROJECTION+Q4FY_PROJECTION) FY_PROJECTION  FROM
+(SELECT  A.ACCOUNT_ID,B.IOU_ID,Q1_PROJECTION,Q2_PROJECTION,Q3_PROJECTION,Q4FY_PROJECTION, fy_projection FROM
+((SELECT QUATER,ACCOUNT_id,IOU_ID,SUM(TCV_BMN_USD) TCV_BMN_USD FROM BTG_WKLY_PL_PMO_TGT  where 1=1  '||v_cond||'
+       and   period like ''%Actual%'' 
+       GROUP BY QUATER,ACCOUNT_id,IOU_ID)
+       PIVOT(SUM(TCV_BMN_USD) FOR QUATER IN ('''||V_TCV_PREV_QTR||''' AS Q1_PROJECTION,'''|| ||''' AS Q2_PROJECTION,'''||V_CUR_QTR||''' AS Q3_PROJECTION))) b
+       
+       left outer join 
+       (select account_id,sum(Q4FY_PROJECTION) Q4FY_PROJECTION ,sum(fy_projection) fy_projection  from  wkly_tcv_outlook_tgt t where 
+         T.FILE_DATE = '''||V_PERIOD||''' AND  (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
+(SELECT IOU_ID,SUB_IOU_ID,ACCOUNT_ID, MAX(FILE_DATE)
+FROM BTG_WKLY_PL_TGT S
+ WHERE S.QUARTER = ''' || V_CUR_QTR || '''
+              '|| V_COND ||'
+AND S.FILE_DATE '||V_GRT_COND1||V_GRT_COND||'= ''' || V_PERIOD || '''
+group by iou_id,sub_iou_id,account_id)
+ group by account_id  ) a
+on b.account_id  = a.account_id  
+where b.account_id  = a.account_id  
+ ) D
+--GROUP BY GROUPING SETS ((IOU_ID,ACCOUNT_ID),())
+GROUP BY IOU_ID,ACCOUNT_ID 
+order by case when IOU = ''Total'' then ''AAAAAA'' else IOU end)
+UNION ALL 
+SELECT DISTINCT IOU_SHORT_NAME,SHORT_NAME,'''' A,'''' B,'''' C,'''' D ,'''' E 
+FROM NEW_BTG_ACCOUNT_MAPPING M
+WHERE   1=1    ' || V_COND || ' and UPPER(M.Active) =''YES''
+and m.account_id not in (select t.account_id FROM WKLY_TCV_OUTLOOK_TGT T
+WHERE T.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
+and (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
+(SELECT IOU_ID,SUB_IOU_ID,ACCOUNT_ID, MAX(FILE_DATE)
+FROM BTG_WKLY_PL_TGT S
+WHERE S.QUARTER = ''' || V_CUR_QTR || '''
+              ' || V_COND || '
+AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
+group by iou_id,sub_iou_id,account_id)))
+ORDER BY CASE WHEN IOU LIKE ''%Total^2%'' THEN ''AAA''
 ELSE
+  IOU END
+
+';
+ELSE 
+ 
+
   
 
 ----CODE FOR I WRITTEN 
- /* QRY := 'SELECT  IOU,ACCOUNT,TO_CHAR(Q1) Q1,TO_CHAR(Q2) Q2,TO_CHAR(Q3),TO_CHAR(Q4) Q4 FROM (
+ QRY := 'SELECT * FROM (SELECT  IOU,ACCOUNT,TO_CHAR(Q1) Q1,TO_CHAR(Q2) Q2,TO_CHAR(Q3),TO_CHAR(Q4) Q4,TO_CHAR(FY_PROJECTION) FROM (
   SELECT nvl((SELECT DISTINCT iou_short_name FROM NEW_BTG_ACCOUNT_MAPPING K WHERE  K.IOU_ID=D.IOU_ID),''Total^2'') IOU,
 NVL((SELECT DISTINCT short_name FROM NEW_BTG_ACCOUNT_MAPPING K WHERE  K.account_id=D.account_id ),''Total'') ACCOUNT,
-SUM(Q1_PROJECTION) Q1,SUM(Q2_PROJECTION) Q2, SUM(Q3_PROJECTION) Q3,SUM(Q4FY_PROJECTION) Q4 FROM
+SUM(Q1_PROJECTION) Q1,SUM(Q2_PROJECTION) Q2, SUM(Q3_PROJECTION) Q3,SUM(Q4FY_PROJECTION) Q4,
+SUM(Q1_PROJECTION+Q2_PROJECTION
++Q3_PROJECTION+Q4FY_PROJECTION) FY_PROJECTION
+ FROM
 (SELECT  A.ACCOUNT_ID,B.IOU_ID,Q1_PROJECTION,Q2_PROJECTION,Q3_PROJECTION,Q4FY_PROJECTION, fy_projection FROM
 ((SELECT QUATER,ACCOUNT_id,IOU_ID,SUM(TCV_BMN_USD) TCV_BMN_USD FROM BTG_WKLY_PL_PMO_TGT  where 1=1  '||v_cond||'
        and   period like ''%Actual%'' 
@@ -6918,9 +8814,9 @@ where b.account_id  = a.account_id
 GROUP BY GROUPING SETS ((IOU_ID,ACCOUNT_ID),())
 order by case when IOU = ''Total'' then ''AAAAAA'' else IOU end)
 UNION ALL 
-SELECT DISTINCT IOU_SHORT_NAME,SHORT_NAME,'''' A,'''' B,'''' C,'''' D 
+SELECT DISTINCT IOU_SHORT_NAME,SHORT_NAME,'''' A,'''' B,'''' C,'''' D ,'''' E
 FROM NEW_BTG_ACCOUNT_MAPPING M
-WHERE   1=1    ' || V_COND || ' and UPPER(M.Active) =''YES''\* AND M.IOU_ID <>263*\
+WHERE   1=1    ' || V_COND || ' and UPPER(M.Active) =''YES''
 and m.account_id not in (select t.account_id FROM WKLY_TCV_OUTLOOK_TGT T
 WHERE T.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
 and (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
@@ -6929,11 +8825,73 @@ FROM BTG_WKLY_PL_TGT S
 WHERE S.QUARTER = ''' || V_CUR_QTR || '''
               ' || V_COND || '
 AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
-group by iou_id,sub_iou_id,account_id))
+group by iou_id,sub_iou_id,account_id)))
+ORDER BY CASE WHEN IOU LIKE ''%Total^2%'' THEN ''AAA''
+ELSE
+  IOU END
 
-';*/
+';
+END IF;*/
 
- QRY := ' '||V_TCV_TOTAL_APPEND||' SELECT * FROM (SELECT ' || V_COL_ADD || 'account,
+------ IF ABLE TO EDIT THE PROTECTED SHEET AT THAT TIME WE  NEED TO TAK EFORM SYSDTEM ACCCORING TO QUATRER 
+
+/*if V_QTR_CHK = 'Q4' THEN 
+merge into (select * from wkly_tcv_outlook_tgt where file_Date = V_PERIOD) A
+USING (SELECT * FROM BTG_WKLY_PL_PMO_TGT where  period like '%Actual%' and QUATER = V_TCV_PREV_QTR) B
+ON (A.ACCOUNT_ID = B.ACCOUNT_ID) 
+WHEN  MATCHED  THEN 
+UPDATE SET  A.Q1FY_PROJECTION = (B.TCV_BMN_USD);
+COMMIT;
+
+
+
+
+merge into (select * from wkly_tcv_outlook_tgt where file_Date = V_PERIOD ) A
+USING (SELECT * FROM BTG_WKLY_PL_PMO_TGT where  period like '%Actual%' and QUATER = V_PRV_QTR) B
+ON (A.ACCOUNT_ID = B.ACCOUNT_ID) 
+WHEN  MATCHED  THEN 
+UPDATE SET  A.Q2FY_PROJECTION = (B.TCV_BMN_USD);
+COMMIT;
+
+merge into (select * from wkly_tcv_outlook_tgt where file_Date = V_PERIOD) A
+USING (SELECT * FROM BTG_WKLY_PL_PMO_TGT where  period like '%Actual%' and QUATER = V_CUR_QTR) B
+ON (A.ACCOUNT_ID = B.ACCOUNT_ID) 
+WHEN  MATCHED  THEN 
+UPDATE SET  A.Q3FY_PROJECTION = (B.TCV_BMN_USD);
+COMMIT;
+
+ELSIF V_QTR_CHK = 'Q3' THEN 
+ 
+
+merge into (select * from wkly_tcv_outlook_tgt where file_Date = V_PERIOD ) A
+USING (SELECT * FROM BTG_WKLY_PL_PMO_TGT where  period like '%Actual%' and QUATER = V_PRV_QTR) B
+ON (A.ACCOUNT_ID = B.ACCOUNT_ID) 
+WHEN  MATCHED  THEN 
+UPDATE SET  A.Q2FY_PROJECTION = (B.TCV_BMN_USD);
+COMMIT;
+
+merge into (select * from wkly_tcv_outlook_tgt where file_Date = V_PERIOD ) A
+USING (SELECT * FROM BTG_WKLY_PL_PMO_TGT where  period like '%Actual%' and QUATER = V_CUR_QTR) B
+ON (A.ACCOUNT_ID = B.ACCOUNT_ID) 
+WHEN  MATCHED  THEN 
+UPDATE SET  A.Q3FY_PROJECTION = (B.TCV_BMN_USD);
+COMMIT;
+
+ELSIF V_QTR_CHK = 'Q2' THEN 
+  
+  merge into (select * from wkly_tcv_outlook_tgt where file_Date = V_PERIOD ) A
+USING (SELECT * FROM BTG_WKLY_PL_PMO_TGT where  period like '%Actual%' and QUATER = V_CUR_QTR) B
+ON (A.ACCOUNT_ID = B.ACCOUNT_ID) 
+WHEN  MATCHED  THEN 
+UPDATE SET  A.Q3FY_PROJECTION = (B.TCV_BMN_USD);
+COMMIT;
+END IF; */
+  
+
+
+
+
+QRY := ' '||V_TCV_TOTAL_APPEND||' SELECT * FROM (SELECT ' || V_COL_ADD || 'account,
 TO_CHAR(q1fy_projection),
 TO_CHAR(Q2fy_projection),
 TO_CHAR(q3fy_projection),
@@ -6961,7 +8919,7 @@ group by iou_id,sub_iou_id,account_id)
 UNION ALL 
 SELECT DISTINCT SHORT_NAME,'''' A,'''' B,'''' C,'''' D,'''' E,IOU_ID 
 FROM NEW_BTG_ACCOUNT_MAPPING M
-WHERE   1=1    ' || V_COND || ' and UPPER(M.Active) =''YES''/* AND M.IOU_ID <>263*/
+WHERE   1=1    ' || V_COND || ' and UPPER(M.Active) =''YES''
 and m.account_id not in (select t.account_id FROM WKLY_TCV_OUTLOOK_TGT T
 WHERE T.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
 and (T.IoU_ID,t.sub_iou_id,t.account_id, T.FILE_DATE) IN
@@ -6972,7 +8930,8 @@ WHERE S.QUARTER = ''' || V_CUR_QTR || '''
 AND S.FILE_DATE '||V_GRT_COND||'= ''' || V_PERIOD || '''
 group by iou_id,sub_iou_id,account_id)))D
 '||V_ORDER_BY||')';
-END IF;
+end if; 
+
     --   ORDER BY account_id 
       
        
@@ -6991,7 +8950,7 @@ END IF;
          AND  (I_GRID_COUNT = 6) AND TRIM(UPPER(I_SHEET_NAME)) LIKE '%P' || '&' || 'L%') THEN 
        --TRIM(UPPER(I_SHEET_NAME)) LIKE '%EXECUTIVE SUMMARY%' 
        -- IF TRIM(UPPER(I_SHEET_NAME)) LIKE '%P' || '&' || 'L%' THEN
-   
+        
           IF I_ISU_ID IS NULL OR I_ISU_ID = '0' THEN 
             --== BG Level
              V_COL_ADD := 'ISU_NAME,';
@@ -7100,7 +9059,7 @@ END IF;
                  '''||'' AOP'' FROM DUAL
                 UNION ALL
                 SELECT 3 ID, ''' || V_CUR_QTR_PL ||
-                 '''||'' Revised Target/WFP*'' FROM DUAL
+                 '''||'' Revised Target'' FROM DUAL
                 UNION ALL*\
                 SELECT 4 ID, ''' || V_CUR_QTR_PL ||
                  '''||'' Outlook'' PERIOD FROM DUAL))M
@@ -8026,7 +9985,7 @@ TO_CHAR(Z.REMARKS) REMARKS   FROM
                WHERE TRIM(UPPER(T.REPORT_NAME)) =  TRIM(UPPER(''' ||
              I_REPORT_NAME ||
              '''))
-                 AND TRIM(UPPER(SHEET_NAME)) = TRIM(UPPER(''' ||
+                 AND TRIM(UPPER(SHEET_NAME)) =  TRIM(UPPER(''' ||
              I_SHEET_NAME || '''))
                 -- AND T.GRID_ID = ' || I_GRID_COUNT || '
                        AND T.HEADER_ID NOT IN (3.1,3.2,15.1,15.2,80.1,80.2,73.1,73.2,88.1,88.2,40.1,40.2,59.1,59.2,49.1,49.2,18.1,23.2,28.1,23.93)
@@ -8133,12 +10092,14 @@ TO_CHAR(Z.REMARKS) REMARKS   FROM
     
       O_MSG := 'Success';
     
-    EXCEPTION
+   /* EXCEPTION
       WHEN OTHERS THEN
-        O_MSG := 'Failure';
+        O_MSG := 'Failure';*/
     END;
   
-  end SP_WSR_TEMPLATE;
+  end SP_WSR_TEMPLATE; 
+  
+
   
   
 
@@ -8382,6 +10343,7 @@ TO_CHAR(Z.REMARKS) REMARKS   FROM
            THEN
           
             O_MSG := 'Y' || '#' || V_REPORT_FLAG || '#' || V_FLAG || V_WEEK;
+            
           
           ELSIF V_MAX_UPLOAED_DATE = V_FILE_DATE OR
                 V_MAX_UPLOAED_DATE IS NULL THEN
@@ -8607,6 +10569,7 @@ login_id,
 file_date
 
 
+
 )
    VALUES (' || I_CLUS_ID || ',?,' || I_ACC_ID || ',
              ?,
@@ -8695,7 +10658,7 @@ AND S.ACCOUNT_ID = TRIM('||I_ACC_ID||')
 
    ';
     
-   /*ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
+   /* ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
     
       O_INSERT_QRY := 'INSERT INTO WKLY_HC_BTG_STG
       ( 
@@ -8762,7 +10725,7 @@ VALUES
 AND S.SUB_IOU_ID = TRIM('||I_CLUS_ID||')
 AND S.ACCOUNT_ID = TRIM('||I_ACC_ID||')
  ';*/
-    ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
+      ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
      
      O_DELETE_QRY := 'DELETE FROM BTG_WSR_HC_STG S Where s.ACCOUNT_ID='''||I_ACC_ID||'''';
                         
@@ -8831,17 +10794,14 @@ AND S.ACCOUNT_ID = TRIM('||I_ACC_ID||')
     QRY                  LONG;
     v_pl_rem_cnt number;
     v_exe_rem_cnt number;
-    v_count1 number;
   ---  v_loss_rem_cnt number;
     v_wins_rem_cnt number;
+    V_COUNT1 number;
     V_EXE_CNT            number;
     V_CURR_QTR           VARCHAR2(1000);
     V_CURR_MONTH         DATE;
     V_CLOSURE_MONTH      VARCHAR2(1000);
     v_pip_rem_cnt number;
-     V_HC_1               VARCHAR2(1000);
-    V_HC_2               VARCHAR2(1000);
-    V_HC_3               VARCHAR2(1000);
     V_DATE               DATE;
     v_loss_rem_cnt number;
     V_PLAN               VARCHAR2(2000);
@@ -8853,8 +10813,6 @@ AND S.ACCOUNT_ID = TRIM('||I_ACC_ID||')
     V_SUB_ISU#           NUMBER;
     V_REL#               NUMBER;
     V_SUB_ISU            VARCHAR2(4000);
-    v_hc_acc             VARCHAR2(4000);
-    V_ACC                VARCHAR2(4000);
     V_REL                VARCHAR2(4000);
     V_CNT                NUMBER;
     V_CRM                VARCHAR2(1000);
@@ -8893,6 +10851,9 @@ AND S.ACCOUNT_ID = TRIM('||I_ACC_ID||')
     V_COLUMN1            VARCHAR2(1000);
     V_MON1               VARCHAR2(1000);
     V_MON3               VARCHAR2(1000);
+    V_HC_1               VARCHAR2(1000);
+    V_HC_2               VARCHAR2(1000);
+    V_HC_3               VARCHAR2(1000);
     V_STG                VARCHAR2(1000);
     V_DUPLCT_COUNT       NUMBER;
     V_COUNT              NUMBER;
@@ -9326,7 +11287,7 @@ where  S.IOU_ID = I_ISU_ID
       
       END IF;
     
-     ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') LIKE 'HC%' THEN
+    ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') LIKE 'HC%' THEN
     
     
      /*V_LAST_MON1 := TO_CHAR(V_LAST_MON, 'MON')||' Exit HC'||V_PR3_APP;
@@ -9387,6 +11348,7 @@ where  S.IOU_ID = I_ISU_ID
       AND T.MON2_INC IS NULL AND T.ON_OFF IS NOT NULL AND T.ON_OFF NOT LIKE '%Total%';
       
       SELECT COUNT(1) INTO V_HC_3 FROM BTG_WSR_HC_STG T WHERE  T.ACCOUNT_ID=I_ACC_ID
+
       AND T.MON3_INC IS NULL AND T.ON_OFF IS NOT NULL AND T.ON_OFF NOT LIKE '%Total%';
       
       
@@ -9434,6 +11396,7 @@ where  S.IOU_ID = I_ISU_ID
         COMMIT;
       END IF;
       
+      
       ELSIF UPPER(I_SHEET_NAME) LIKE '%ITG%' THEN
         
       select count(1)  into v_count from WKLY_ITG_SALES_STG t
@@ -9458,7 +11421,6 @@ where  S.IOU_ID = I_ISU_ID
         COMMIT;
       END IF;   
           
-  
     
     ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') LIKE 'PIPELINE%' THEN
     
@@ -9717,8 +11679,7 @@ where  S.IOU_ID = I_ISU_ID
       
     
      
-       
-    
+      
     
       select count(*)
         into v_count
@@ -9760,8 +11721,9 @@ where  S.IOU_ID = I_ISU_ID
            COMMIT;
       
       END IF;
-             
-             
+      
+    
+    
     
       IF V_COUNT > 0 THEN
         ----ERROR
@@ -10093,6 +12055,7 @@ where  S.IOU_ID = I_ISU_ID
   
   end SP_WEEKLY_UPLOAD_ERR_CHK;
 
+  
   PROCEDURE SP_WEEKLY_STG_TO_TGT(I_LOGGED_EMP_ID IN NUMBER,
                                  I_COORPORATE    IN VARCHAR2,
                                  I_BU            IN VARCHAR2,
@@ -10111,9 +12074,9 @@ where  S.IOU_ID = I_ISU_ID
     V_CURR_WEEK    DATE;
     V_CURR_QTR     VARCHAR2(1000);
     V_CURR_QTR1    VARCHAR2(1000);
-    V_COL          VARCHAR2(4000);
     V_CURR_MONTH   DATE;
     V_FRZ          VARCHAR2(1000);
+    V_CUR_MONTH    VARCHAR2(4000);
     V_VAR          VARCHAR2(100);
     V_CNT          NUMBER;
     V_CNT_NAME     NUMBER;
@@ -10121,11 +12084,13 @@ where  S.IOU_ID = I_ISU_ID
     V_HC_ACC       VARCHAR2(4000);
     V_DATE         DATE;
     V_PLAN         VARCHAR2(500);
+    V_MON1         VARCHAR2(4000);
+    V_MON2         VARCHAR2(4000);
+    V_MON3         VARCHAR2(4000);
+    V_COL          VARCHAR2(4000);
     V_PLAN1        VARCHAR2(500);
     V_CORP_PLAN    VARCHAR2(500);
-    V_CUR_3        sys_refcursor;
     V_AOP          VARCHAR2(500);
-    V_ACC          VARCHAR2(4000);
     V_ACTUAL       VARCHAR(500);
     v_tgt_table    VARCHAR2(1000);
     v_STG_table    VARCHAR2(1000);
@@ -10141,10 +12106,7 @@ where  S.IOU_ID = I_ISU_ID
     V_CHK_SEN_1 NUMBER;
     V_CHK_SEN_2 NUMBER;
     V_CAT_CHK VARCHAR2(1000);
-    V_MON1    VARCHAR2(4000);
-    V_MON2    VARCHAR2(4000);
-    V_MON3    VARCHAR2(4000);
-    V_CUR_MONTH VARCHAR2(4000);
+    V_CUR_QTR VARCHAR2(4000);
     
     V_CUR_1 sys_refcursor;
     
@@ -10153,6 +12115,7 @@ where  S.IOU_ID = I_ISU_ID
     v_date_10 date;
     V_VAR_1 varchar2(100);
     V_CNT_6 number;
+    V_CUR_3 SYS_REFCURSOR;
   BEGIN
   
     INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
@@ -10191,14 +12154,15 @@ where  S.IOU_ID = I_ISU_ID
   
     V_FROM_DATE := FN_FETCH_FIRST_QTR_DAY(V_CURR_QTR);
     V_TO_DATE   := FN_FETCH_LAST_DAY_QTR(V_CURR_QTR);
-  
-    V_MISMATCH_CNT := 0;
     
-     SELECT INITCAP(SUBSTR(V_DATE, 4, 3)) INTO V_CUR_MONTH FROM DUAL;
+    SELECT INITCAP(SUBSTR(V_DATE, 4, 3)) INTO V_CUR_MONTH FROM DUAL;
 
   V_MON1 := INITCAP(SUBSTR(FN_FETCH_FIRST_MONTH(V_CURR_QTR), 4, 3));
   V_MON2 := INITCAP(SUBSTR(FN_FETCH_SECOND_MONTH(V_CURR_QTR), 4, 3));
   V_MON3 := INITCAP(SUBSTR(FN_FETCH_LAST_MONTH(V_CURR_QTR), 4, 3));
+    
+  
+    V_MISMATCH_CNT := 0;
   
     QRY := 'SELECT SUBSTR(''' || V_CURR_QTR ||
            ''',1,2)||'' ''||Q''<''>''||SUBSTR(''' || V_CURR_QTR ||
@@ -10236,7 +12200,6 @@ where  S.IOU_ID = I_ISU_ID
   
     BEGIN
     
-    
       SELECT DISTINCT LISTAGG(T.FREEZE_FLAG, ',') WITHIN GROUP(ORDER BY NULL)
         INTO V_FRZ
         FROM WKLY_REP_FRZ_UNFRZ_BTG T
@@ -10259,7 +12222,7 @@ where  S.IOU_ID = I_ISU_ID
         
           IF V_CNT = 0 THEN
             --NO FILES UPLOADED FOR THAT ISU FOR CURRNT WEEK
-   
+          
             INSERT INTO BTG_EXECUTIVE_SUMMARY_TGT
               SELECT (select distinct t.short_name from new_btg_account_mapping t where t.account_id=I_ACC_ID)ACCNT,
                       SUMMARY,
@@ -10273,7 +12236,7 @@ where  S.IOU_ID = I_ISU_ID
                      ORDER_ID,
                      S.ACCOUNT_ID,
                      S.SUB_IOU_ID,
-                     S.IOU_ID 
+                     S.IOU_ID
                 FROM BTG_EXECUTIVE_SUMMARY_STG S
                WHERE S.IOU_ID = TRIM(I_ISU_ID)
                  AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
@@ -10303,8 +12266,6 @@ where  S.IOU_ID = I_ISU_ID
               INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
-             
-            
             
           
           ELSE
@@ -10318,7 +12279,7 @@ where  S.IOU_ID = I_ISU_ID
                      UPLOADED_DATE,
                      SYSDATE,
                      I_CLUS_ID,
-                     I_ACC_ID
+                     I_ACC_ID,'',''
                 FROM BTG_EXECUTIVE_SUMMARY_TGT T
                WHERE T.FILE_DATE = V_DATE
                  AND T.IOU_ID = TRIM(I_ISU_ID)
@@ -10332,7 +12293,10 @@ where  S.IOU_ID = I_ISU_ID
                AND T.SUB_IOU_ID = TRIM(I_CLUS_ID)
                AND T.ACCOUNT_ID = TRIM(I_ACC_ID);
             COMMIT;
+            
+           
           
+           
             INSERT INTO BTG_EXECUTIVE_SUMMARY_TGT
               SELECT (select distinct t.short_name from new_btg_account_mapping t where t.account_id=I_ACC_ID)ACCNT,
                       SUMMARY,
@@ -10341,9 +12305,8 @@ where  S.IOU_ID = I_ISU_ID
                      
 
                      V_DATE,
-                     (SELECT MAX(H.UPLOADED_DATE)
-                        FROM BTG_EXECUTIVE_SUMMARY_TGT_HIS H),
                      SYSDATE,
+                     '',
                      ORDER_ID,
                      S.ACCOUNT_ID,
                      S.SUB_IOU_ID,
@@ -10352,10 +12315,12 @@ where  S.IOU_ID = I_ISU_ID
                WHERE S.IOU_ID = TRIM(I_ISU_ID)
                  AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
                  AND S.ACCOUNT_ID = TRIM(I_ACC_ID)
+                    --AND S.FILE_DATE = V_CURR_WEEK
                  AND S.FILE_DATE = I_DATE
                  and s.summary is not null
                  and s.summary <> '-';
             COMMIT;
+          
             
              SELECT COUNT(*) INTO V_ERROR 
                 FROM BTG_EXECUTIVE_SUMMARY_TGT S
@@ -10414,7 +12379,7 @@ V_DATE
                  AND S.ACCOUNT_ID = TRIM(I_ACC_ID)
                     --AND S.FILE_DATE = V_CURR_WEEK
                 -- AND to_date(S.FILE_DATE = I_DATE
-                and  TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') = TO_DATE(I_DATE, 'DD/MM/RRRR')
+             --   and  TO_DATE(S.FILE_DATE, 'DD/MM/RRRR') = TO_DATE(I_DATE, 'DD/MM/RRRR')
                 ;
             COMMIT;
           
@@ -10429,8 +12394,8 @@ V_DATE
                --  AND S.FILE_DATE = V_DATE;
                  
                  
-              IF V_ERROR <> 0 THEN 
-                         
+              IF V_ERROR =1 THEN 
+                        
                 O_MSG := 'SUCCESS';            
              END IF;
              
@@ -10508,8 +12473,9 @@ V_DATE
                  AND S.FILE_DATE = V_DATE;
                  
                  
-              IF V_ERROR <> 0 THEN 
-                        
+              IF V_ERROR <> 0
+                THEN 
+                     
                 O_MSG := 'SUCCESS';            
              END IF;
            
@@ -10573,11 +12539,11 @@ V_DATE
                       COMMIT;*/
           INSERT INTO BTG_WKLY_PL_TGT
             SELECT REPLACE(PERIOD, '''', '-'),
-                   SERVICES_REV,
-                   BOC_REV,
-                   SUB_CON_REV,
-                   TCS_LICENSE_REV,
-                   TOTAL_REV,
+                 NULL,--  SERVICES_REV,
+                 NULL,--  BOC_REV,
+                 NULL,--  SUB_CON_REV,
+                 NULL,--  TCS_LICENSE_REV,
+                   NULL,--TOTAL_REV,
                    INCR_HC,
                    CM_MARGIN,
                    BOC_COST_BMN_USD,
@@ -10598,7 +12564,7 @@ V_DATE
              WHERE S.IOU_ID = TRIM(I_ISU_ID)
                AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
                AND S.ACCOUNT_ID = TRIM(I_ACC_ID)
-          ---  AND S.FILE_DATE =I_DATE
+            --AND S.FILE_DATE =I_DATE
             /* AND S.PERIOD IN (V_PLAN1)*/
             ; ---COMMENTED AS OF NOW
           COMMIT;
@@ -10653,11 +12619,11 @@ V_DATE
           ------ALREADY FILE UPLOADED
           INSERT INTO BTG_WKLY_PL_TGT_HIS
             SELECT PERIOD,
-                   SERVICES_REV,
-                   BOC_REV,
-                   SUB_CON_REV,
-                   TCS_LICENSE_REV,
-                   TOTAL_REV,
+                   NULL,--  SERVICES_REV,
+                 NULL,--  BOC_REV,
+                 NULL,--  SUB_CON_REV,
+                 NULL,--  TCS_LICENSE_REV,
+                   NULL,--TOTAL_REV,
                    INCR_HC,
                    CM_MARGIN,
                    BOC_COST_BMN_USD,
@@ -10671,21 +12637,23 @@ V_DATE
                    '',
                    '',
                    T.SUB_IOU_ID,
-                   T.ACCOUNT_ID 
+                   T.ACCOUNT_ID,'',''
               FROM BTG_WKLY_PL_TGT T
              WHERE T.FILE_DATE = V_DATE
                AND T.IOU_ID = TRIM(I_ISU_ID)
                AND T.SUB_IOU_ID = TRIM(I_CLUS_ID)
                AND T.ACCOUNT_ID = TRIM(I_ACC_ID);
           COMMIT;
-        
-          DELETE FROM BTG_WKLY_PL_TGT T
+        ------------------------------------------------------
+         DELETE FROM BTG_WKLY_PL_TGT T
            WHERE T.FILE_DATE = V_DATE
              AND T.IOU_ID = TRIM(I_ISU_ID)
              AND T.SUB_IOU_ID = TRIM(I_CLUS_ID)
              AND T.ACCOUNT_ID = TRIM(I_ACC_ID);
           COMMIT;
-        
+          
+    
+   ----------------------------------------     
           /*INSERT INTO BTG_WKLY_PL_TGT
                         SELECT REPLACE(PERIOD,'''','-'),
                                SERVICES_REV,
@@ -10721,11 +12689,11 @@ V_DATE
                       COMMIT;*/
           INSERT INTO BTG_WKLY_PL_TGT
             SELECT REPLACE(PERIOD, '''', '-'),
-                   SERVICES_REV,
-                   BOC_REV,
-                   SUB_CON_REV,
-                   TCS_LICENSE_REV,
-                   TOTAL_REV,
+                    NULL,--  SERVICES_REV,
+                 NULL,--  BOC_REV,
+                 NULL,--  SUB_CON_REV,
+                 NULL,--  TCS_LICENSE_REV,
+                   NULL,--TOTAL_REV,
                    INCR_HC,
                    CM_MARGIN,
                    BOC_COST_BMN_USD,
@@ -10741,12 +12709,12 @@ V_DATE
                    '',
                    S.SUB_IOU_ID,
                    S.ACCOUNT_ID,
-                   '' 
+                   ''
               FROM BTG_WKLY_PL_STG S
              WHERE S.IOU_ID = TRIM(I_ISU_ID)
                AND S.SUB_IOU_ID = TRIM(I_CLUS_ID)
                AND S.ACCOUNT_ID = TRIM(I_ACC_ID)
-           --- AND S.FILE_DATE =I_DATE
+            --AND S.FILE_DATE =I_DATE
             /* AND S.PERIOD IN (V_PLAN1)*/
             ; ---COMMENTED AS OF NOW
           COMMIT;
@@ -10810,24 +12778,31 @@ V_DATE
       IF V_PIPE_TGT_CHCK <> 0 THEN 
       
       
+      ----------------------------------------------------------
+      /*  DELETE FROM WKLY_BTG_PIPELINE_TGT T
+         WHERE ((T.IOU_ID, T.SUB_IOU_ID, T.ACCOUNT_ID) IN
+               (SELECT IOU_ID, SUB_IOU_ID, ACCOUNT_ID
+                  FROM WKLY_BTG_PIPELINE_STG))
+                    AND T.FILE_DATE = V_DATE;
+        COMMIT;*/
       
       
-DELETE FROM WKLY_BTG_PIPELINE_TGT G
-WHERE G.IOU_ID = I_ISU_ID
-AND G.SUB_IOU_ID = I_CLUS_ID
-AND G.ACCOUNT_ID = I_ACC_ID
-AND G.FILE_DATE = V_DATE;
-commit;
-
-
-  DELETE FROM WKLY_BTG_PIPELINE_USER_DATA T
+      DELETE FROM WKLY_BTG_PIPELINE_TGT G 
+        WHERE  G.IOU_ID = I_ISU_ID 
+      AND G.SUB_IOU_ID = I_CLUS_ID 
+      AND G.ACCOUNT_ID = I_ACC_ID 
+      AND  G.FILE_DATE = V_DATE;
+      COMMIT;
+      
+       DELETE FROM WKLY_BTG_PIPELINE_USER_DATA T
         WHERE  T.FILE_DATE = V_DATE
         AND T.ACCOUNT_ID = TRIM(I_ACC_ID);
         COMMIT; 
       
-
-
-  INSERT INTO WKLY_BTG_PIPELINE_TGT
+      
+      
+      
+        INSERT INTO WKLY_BTG_PIPELINE_TGT
           (GROUP_CLIENT,
            CRM_ID,
            OPPORTUNITY_NAME,
@@ -10875,6 +12850,7 @@ commit;
              AND O.Sub_Iou_Id=TRIM(I_CLUS_ID)
              AND O.ACCOUNT_ID=TRIM(I_ACC_ID)
                AND O.DATESTAMP=(SELECT MAX(DATESTAMP) FROM OPPORTUNITY_BTG_WSR)
+             -- AND UPPER(O.CONFIDENTIAL_FLAG) = 'N'
                    AND O.OPPORTUNITY_ID = S.CRM_ID and S.CRM_ID <>'-';
         COMMIT;
         
@@ -10924,10 +12900,11 @@ commit;
               AND S.CRM_ID NOT IN  
               (SELECT distinct O.OPPORTUNITY_ID  FROM OPPORTUNITY_BTG_WSR O WHERE  O.Iou_Id = TRIM(I_ISU_ID)
              AND O.Sub_Iou_Id=TRIM(I_CLUS_ID)
-             AND O.ACCOUNT_ID=TRIM(I_ACC_ID)
+             AND O.ACCOUNT_ID=TRIM(I_ACC_ID) 
              AND O.Datestamp=(SELECT MAX(DATESTAMP) FROM OPPORTUNITY_BTG_WSR));
                   
         COMMIT;
+        
         
        
         END IF;
@@ -10941,20 +12918,16 @@ commit;
              ELSE
                   O_MSG := 'SUCCESS'; 
              END IF;           
-             
-             
-           
-                   
-                         
+            
            
          INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
-            
-             OPEN O_USER_DATA FOR SELECT  'Opp Id '||U.CRM_ID ||' '||'not in system' FROM WKLY_BTG_PIPELINE_USER_DATA U 
+              
+               OPEN O_USER_DATA FOR SELECT  'Opp Id '||U.CRM_ID ||' '||'not in system' FROM WKLY_BTG_PIPELINE_USER_DATA U 
           WHERE U.Iou_Id=TRIM(I_ISU_ID) AND U.ACCOUNT_ID = TRIM(I_ACC_ID) AND U.SUB_IOU_ID = TRIM(I_CLUS_ID)  AND U.FILE_DATE=V_DATE;
-            
-ELSIF REPLACE(UPPER(I_SHEET_NAME),' ','') LIKE 'C-CONNECTSORCUSTOMERVISIT'  THEN
+      
+    ELSIF REPLACE(UPPER(I_SHEET_NAME),' ','') LIKE 'C-CONNECTSORCUSTOMERVISIT'  THEN
      
     ---CHECKING VALUE IS CONNECTS OR VISITS   
      DELETE FROM CCONNECT_ERROR;
@@ -11015,6 +12988,7 @@ ELSIF REPLACE(UPPER(I_SHEET_NAME),' ','') LIKE 'C-CONNECTSORCUSTOMERVISIT'  THEN
               UPPER(S.CATEGORY) = UPPER(V_CAT_CHK)
              
                ;
+               
                
                
                 
@@ -11080,6 +13054,7 @@ ELSIF REPLACE(UPPER(I_SHEET_NAME),' ','') LIKE 'C-CONNECTSORCUSTOMERVISIT'  THEN
               UPPER(S.CATEGORY) = UPPER(V_CAT_CHK)
              
                ;
+               
                  
                V_VAR_1 := 'Meeting date';
                
@@ -11113,8 +13088,8 @@ ELSIF REPLACE(UPPER(I_SHEET_NAME),' ','') LIKE 'C-CONNECTSORCUSTOMERVISIT'  THEN
             
         
          
-      IF V_CHK_SEN_1 <>0 OR V_CHK_SEN_2 <>0 THEN 
-       
+      IF V_CHK_SEN_1 <>0  OR  V_CHK_SEN_2 <>0 THEN 
+        
        
        /*
         IF V_CHK_SEN_1 <>0  THEN 
@@ -11136,7 +13111,7 @@ ELSIF REPLACE(UPPER(I_SHEET_NAME),' ','') LIKE 'C-CONNECTSORCUSTOMERVISIT'  THEN
           -- U.FILE_DATE=V_DATE;
           OPEN O_USER_DATA FOR SELECT * FROM CCONNECT_ERROR; 
           
-        
+          
       ELSE 
         V_MSG_1 := 'SUCCESS';
          
@@ -11208,15 +13183,13 @@ S.outcome,
        commit;
        
         
-                     
-                O_MSG := 'SUCCESS';            
-          
+          O_MSG := 'SUCCESS';
            INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
             
         
-        ELSE
+       ELSE
         
           INSERT INTO WKLY_CUSTOMER_VISIT_TGT_NAME_HIS
             SELECT T.SUB_IOU_ID,
@@ -11253,7 +13226,10 @@ T.outcome,
              AND T.SUB_IOU_ID = TRIM(I_CLUS_ID)
              AND T.ACCOUNT_ID = TRIM(I_ACC_ID);
           COMMIT;
-        
+          
+          
+         
+        -----------------------------------
           INSERT INTO WKLY_CUSTOMER_VISIT_TGT_NAME
             SELECT S.SUB_IOU_ID,
                    S.ACCOUNT,
@@ -11283,6 +13259,7 @@ S.outcome,
                AND S.ACCOUNT_ID = TRIM(I_ACC_ID);
         
           COMMIT;
+         
         
           O_MSG := v_msg_1;
            INSERT INTO MSG_EXEP 
@@ -11296,6 +13273,12 @@ S.outcome,
       
             
         END IF;
+           
+       -- END IF;
+        /* END LOOP;
+
+
+      CLOSE V_CUR_1;*/   
       
       ELSIF REPLACE(LOWER(I_SHEET_NAME), ' ', '') = LOWER('CLOSED') THEN
       
@@ -11347,9 +13330,7 @@ S.outcome,
         
           COMMIT;
         
-                       
-                O_MSG := 'SUCCESS';            
-          
+          O_MSG := 'SUCCESS';
            INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
@@ -11376,7 +13357,7 @@ S.outcome,
                    T.UPLOADED_DATE,
                    T.UPDATED_DATE,
                    T.RENEWAL_VALUE,
-                   T.STATUS_UPDATE
+                   T.STATUS_UPDATE,'',''
               FROM WKLY_LOSSES_TGT T
              WHERE T.IOU_ID = TRIM(I_ISU_ID)
                AND T.FILE_DATE = V_DATE
@@ -11397,7 +13378,7 @@ S.outcome,
                    S.ACCOUNT_ID,
                    S.GROUP_CUSTOMER,
                    '',
-                  S.OPP_ID,
+                  TO_NUMBER(S.OPP_ID),
                    S.OPP_NAME,
                    S.OPP_VALUE,
                    S.RENEW_OPP_VALUE,
@@ -11421,17 +13402,14 @@ S.outcome,
         
           COMMIT;
         
-                   
-                O_MSG := 'SUCCESS';            
-           
+          O_MSG := 'SUCCESS';
            INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
             
           
         END IF;
-        
-       
+    
         END IF;
       
       ELSIF REPLACE(LOWER(I_SHEET_NAME), ' ', '') = LOWER('WINS') THEN
@@ -11464,7 +13442,7 @@ S.outcome,
                    S.ACCOUNT_ID,
                    S.GROUP_CUSTOMER,
                    '',
-                 S.OPP_ID,
+                 TO_NUMBER(S.OPP_ID),
                    S.OPP_NAME,
                    S.TOTAL_OF_CON_VALUE,
                    S.RENEW_PORTION_TOC,
@@ -11476,7 +13454,7 @@ S.outcome,
                    V_DATE,
                    S.UPLOADED_DATE,
                    SYSDATE,
-                    TO_NUMBER(DECODE(S.RENEWAL_VALUE,'-','0',S.RENEWAL_VALUE)),
+                TO_NUMBER(DECODE(S.RENEWAL_VALUE,'-','0',S.RENEWAL_VALUE)),
                    S.STATUS_UPDATE
               FROM WKLY_WINS_STG S
              WHERE S.IOU_ID = TRIM(I_ISU_ID)
@@ -11486,9 +13464,8 @@ S.outcome,
                AND S.ACCOUNT_ID = TRIM(I_ACC_ID);
         
           COMMIT;
-                   
-                O_MSG := 'SUCCESS';            
-           
+        
+          O_MSG := 'SUCCESS';
            INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
@@ -11514,7 +13491,7 @@ S.outcome,
                    T.UPLOADED_DATE,
                    T.UPDATED_DATE,
                    T.RENEWAL_VALUE,
-                   T.STATUS_UPDATE
+                   T.STATUS_UPDATE,'',''
               FROM WKLY_WINS_TGT T
              WHERE T.IOU_ID = TRIM(I_ISU_ID)
                AND T.FILE_DATE = V_DATE
@@ -11522,7 +13499,7 @@ S.outcome,
                AND T.SUB_IOU_ID = TRIM(I_CLUS_ID)
                AND T.ACCOUNT_ID = TRIM(I_ACC_ID);
           COMMIT;
-        
+       --------------------------------------------------- 
           DELETE FROM WKLY_WINS_TGT T
            WHERE T.IOU_ID = TRIM(I_ISU_ID)
              AND T.FILE_DATE = V_DATE
@@ -11547,7 +13524,7 @@ S.outcome,
                    V_DATE,
                    S.UPLOADED_DATE,
                    SYSDATE,
-                  TO_NUMBER(DECODE(S.RENEWAL_VALUE,'-','0',S.RENEWAL_VALUE)),
+                TO_NUMBER(DECODE(S.RENEWAL_VALUE,'-','0',S.RENEWAL_VALUE)),
                    S.STATUS_UPDATE
               FROM WKLY_WINS_STG S
              WHERE S.IOU_ID = TRIM(I_ISU_ID)
@@ -11560,9 +13537,7 @@ S.outcome,
           
          
         
-            
-                O_MSG := 'SUCCESS';            
-          
+          O_MSG := 'SUCCESS';
            INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
@@ -11571,23 +13546,27 @@ S.outcome,
           
         END IF;
         
-       
+      
      end if;
-    
+      O_MSG := 'SUCCESS';
       
       ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'TCVOUTLOOK' THEN
       
-     
-DELETE FROM wkly_tcv_outlook_tgt G
-WHERE G.IOU_ID = I_ISU_ID
-AND G.SUB_IOU_ID = I_CLUS_ID
-AND G.ACCOUNT_ID = I_ACC_ID
-AND G.FILE_DATE = V_DATE;
-commit;
-
-
-      
-      
+       /* delete from wkly_tcv_outlook_tgt t  --252 736 581
+         where ((iou_id, sub_iou_id, account_id) in
+               (select ioU_id, sub_iou_id, account_id
+                  from wkly_tcv_outlook_stg))
+                    AND T.FILE_DATE = V_DATE;
+                    
+                    
+      */ 
+    ---------------CHANGES DONE HERE FOR CRCT DELETION --------------  
+      DELETE FROM  wkly_tcv_outlook_tgt G 
+      WHERE  G.IOU_ID = I_ISU_ID 
+      AND G.SUB_IOU_ID = I_CLUS_ID 
+      AND G.ACCOUNT_ID = I_ACC_ID 
+      AND  G.FILE_DATE = V_DATE;
+        commit;
       
         insert into wkly_tcv_outlook_tgt
           (account,
@@ -11641,10 +13620,9 @@ commit;
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
             
-      
-      ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
+       ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
         
-       IF V_CUR_MONTH = V_MON1 THEN
+      IF V_CUR_MONTH = V_MON1 THEN
         V_COL:= 'A.MON1_EXIT = B.MON1_EXIT,
                  A.MON2_EXIT = B.MON2_EXIT,
                  A.MON3_EXIT = B.MON3_EXIT,
@@ -11663,7 +13641,7 @@ commit;
                  A.MON3_INC  = B.MON3_INC,
                  A.CUR_QTR_INC = B.CUR_QTR_INC,';
     END IF;
-      
+    
   QRY := 'MERGE INTO (SELECT *
                 FROM BTG_WSR_HC_TGT T
                WHERE T.PERIOD = '''||V_DATE||'''
@@ -11723,12 +13701,12 @@ commit;
        EXECUTE IMMEDIATE QRY;
        
        COMMIT; 
-       
-       O_MSG := 'Success';
-       INSERT INTO MSG_EXEP 
+           O_MSG := 'SUCCESS';            
+           
+           INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
             COMMIT;
-     /* ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
+      /*ELSIF REPLACE(UPPER(I_SHEET_NAME), ' ', '') = 'HC' THEN
       
         select count(1)
           INTO V_CNT_NAME
@@ -11914,7 +13892,7 @@ commit;
               IF V_ERROR =0 THEN 
               O_MSG:='Error';
               else              
-                O_MSG := 'SUCCESS';           
+                O_MSG := 'SUCCESS';            
              END IF;
            INSERT INTO MSG_EXEP 
             VALUES(I_SHEET_NAME,O_MSG,I_ISU_ID,I_CLUS_ID,I_ACC_ID);
@@ -11945,8 +13923,14 @@ commit;
   UPDATE  WKLY_REP_FRZ_UNFRZ_BTG T SET T.FILE_UPLOADED='Y',T.UPLOADED_DATE=SYSDATE  WHERE T.ISU_ID=I_ISU_ID
   AND T.SUB_ISU_ID=I_CLUS_ID AND T.ACCOUNT_ID=I_ACC_ID 
   AND T.FILE_DATE=V_DATE ;
-  COMMIT;
   
+  COMMIT;
+  ----UPDATING FOR MONTHLY 
+  UPDATE  WKLY_REP_FRZ_UNFRZ_BTG T SET T.M_FILE_UPLOADED='Y',T.M_UPLOADED_DATE=SYSDATE  WHERE T.ISU_ID=I_ISU_ID
+  AND T.SUB_ISU_ID=I_CLUS_ID AND T.ACCOUNT_ID=I_ACC_ID 
+  AND T.FILE_DATE=V_DATE ;
+  
+  COMMIT;
   ELSE
     
   UPDATE  WKLY_REP_FRZ_UNFRZ_BTG T SET T.FILE_UPLOADED='N'  WHERE T.ISU_ID=I_ISU_ID
@@ -11954,13 +13938,17 @@ commit;
   AND T.FILE_DATE=V_DATE ;
   COMMIT;
   
+   UPDATE  WKLY_REP_FRZ_UNFRZ_BTG T SET T.M_FILE_UPLOADED='N'  WHERE T.ISU_ID=I_ISU_ID
+  AND T.SUB_ISU_ID=I_CLUS_ID AND T.ACCOUNT_ID=I_ACC_ID 
+  AND T.FILE_DATE=V_DATE ;
+  COMMIT;
+  
   END IF;
+      --  END IF;
+      
+   
     
-    
-  EXCEPTION
-    
-    
-
+    EXCEPTION
       WHEN OTHERS THEN
       
         O_MSG := 'ERROR';
@@ -12001,9 +13989,10 @@ commit;
     COMMIT;
     
     QRY := 'INSERT INTO WKLY_REP_FRZ_UNFRZ_BTG
-      (ISU_ID,SUB_ISU_ID,ACCOUNT_ID,FILE_UPLOADED,FILE_DATE,FREEZE_FLAG )
+      (ISU_ID,SUB_ISU_ID,ACCOUNT_ID,FILE_UPLOADED,FILE_DATE,FREEZE_FLAG,m_file_uploaded
+      ,m_freeze_flag )
  SELECT  DISTINCT D.IOU_ID,D.SUB_IOU_ID,D.ACCOUNT_ID,''N'',''' ||
-           V_DATE || ''',''N'' FROM NEW_BTG_ACCOUNT_MAPPING D
+           V_DATE || ''',''N'' ,''N'',''N'' FROM NEW_BTG_ACCOUNT_MAPPING D
             WHERE (D.IOU_ID,D.SUB_IOU_ID,D.ACCOUNT_ID) NOT IN (
  SELECT  H.ISU_ID,H.SUB_ISU_ID,H.ACCOUNT_ID  FROM WKLY_REP_FRZ_UNFRZ_BTG H 
  WHERE H.FILE_UPLOADED = ''Y''
@@ -12286,7 +14275,7 @@ end if;
 --V_PREV_WEEK := TO_DATE(V_PREV_WEEK,'MM/DD/YYYY');
 
         
-    --  END;
+     
       
       SELECT
 to_char(TRUNC(TO_dATE(V_DATE,'DD-MON-RR'), 'Q'),'DAY'),
@@ -12329,6 +14318,7 @@ IF UPPER(TRIM(V_FIRST_DAY)) = 'FRIDAY' THEN
     ---------========FOR PPT
     IF UPPER(I_FLAG) LIKE '%PPT%' THEN
  
+   
       V_COLOUR_CODE1 := '^#BE0046';
       V_COLOUR_CODE2 := '^#005B9C';
       V_COLOUR_CODE3 := '^#E95001';
@@ -12339,6 +14329,7 @@ IF UPPER(TRIM(V_FIRST_DAY)) = 'FRIDAY' THEN
       V_INDIC  := '!\u25BC!#FF0000'; --====downward triangle
       V_INDIC1 := '!\u25B2!#77dd77'; ---==upward triangle
       V_INDIC2 := '!\u25CF!#FFA500'; ---==circle
+      
       -----=======boc---==down-green
       V_INDIC3 := '!\u25BC!#77dd77';
       V_INDIC4 := '!\u25B2!#FF0000';
@@ -12359,8 +14350,8 @@ IF UPPER(TRIM(V_FIRST_DAY)) = 'FRIDAY' THEN
     ---===then prev week column should not be shown in grid data and header  
     IF V_DATE <> V_FIRST_DATE THEN
     
-      O_SLIDE_FOOTER := 'Note:Indicators are based on previous week plans.
-      *- Current week WSR is not submitted, So Previous Week WSR Data is populated in Current week.';
+      O_SLIDE_FOOTER := 'NOTE:Indicators are based on previous week plans
+      *- Current week WSR is not submitted,So Previous Week WSR Data is populated in Current week.';
       
             O_WEEK := 'WEEK1###' || V_HEADER || ' WSR###' || V_HEADER_DATE_4 || '';
             
@@ -12371,7 +14362,42 @@ IF UPPER(TRIM(V_FIRST_DAY)) = 'FRIDAY' THEN
     
     IF I_GRID_COUNT = 1 THEN
     
-      V_HDR1 := '/*''REVENUE' || V_COLOUR_CODE2 || ''',
+    /*  V_HDR1 := '\*''REVENUE' || V_COLOUR_CODE2 || ''',
+           ''REVENUE' || V_COLOUR_CODE2 || ''',
+         ''REVENUE' || V_COLOUR_CODE2 || ''',
+         ''$$$$'',*\
+         ''Inc HC' || V_COLOUR_CODE3 || ''',
+         ''Inc HC' || V_COLOUR_CODE3 || ''',
+         ''Inc HC' || V_COLOUR_CODE3 || ''',
+         ''$$$$'',
+         ''GM' || V_COLOUR_CODE2 || ''',
+         ''GM' || V_COLOUR_CODE2 || ''',
+         ''GM' || V_COLOUR_CODE2 || ''',
+         ''$$$$'',
+         ''TCV' || V_COLOUR_CODE3 || ''',
+         ''TCV' || V_COLOUR_CODE3 || ''',
+         ''TCV' || V_COLOUR_CODE3 || '''';
+    
+      V_HDR2 := ' ----===revenue
+       \*''Revised Target' || V_COLOUR_CODE2 || ''',
+       ''Prev. Week Outlook' || V_COLOUR_CODE2 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE2 || ''',
+       ''$$$$'',*\
+       ---===hc
+       ''WFP' || V_COLOUR_CODE3 || ''',
+       ''Prev. Week Outlook' || V_COLOUR_CODE3 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE3 || ''',
+       ''$$$$'',
+       ---===CM
+       ''Revised Target' || V_COLOUR_CODE2 || ''',
+       ''Prev. Week Outlook' || V_COLOUR_CODE2 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE2 || ''',
+       ''$$$$'',
+      ---===TCV
+       ''Revised Target' || V_COLOUR_CODE3 || ''',
+       ''Prev. Week Outlook' || V_COLOUR_CODE3 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE3 || '''';*/
+             V_HDR1 := '/*''REVENUE' || V_COLOUR_CODE2 || ''',
            ''REVENUE' || V_COLOUR_CODE2 || ''',
          ''REVENUE' || V_COLOUR_CODE2 || ''',
          ''$$$$'',*/
@@ -12396,6 +14422,8 @@ IF UPPER(TRIM(V_FIRST_DAY)) = 'FRIDAY' THEN
       V_HDR2 := ' ----===revenue
        /*''Revised Target' || V_COLOUR_CODE2 || ''',
        ''Prev. Week Outlook' || V_COLOUR_CODE2 || ''',
+       
+       
        ''Curr. Week Outlook' || V_COLOUR_CODE2 || ''',
        ''$$$$'',*/
        ---===hc
@@ -12439,7 +14467,419 @@ IF UPPER(TRIM(V_FIRST_DAY)) = 'FRIDAY' THEN
         O_SLIDE_TITLE := '' || V_HEADER || ' '||V_SMP_HEADER||'  (' ||V_HEADER_DATE_4 || ')'||'##'||V_APPEND||'';
 
           ------====Data
+ /*QRY := 'SELECT CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+       CASE WHEN MOD(ROWNUM,2) = 0 ---=====to give colour code for alternate rows
+       AND UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+       ACC_NAME||''' || V_DATA_COLOUR1 || '''
+       ELSE
+       ACC_NAME||''' || V_DATA_COLOUR2 || '''
+       END
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+       ACC_NAME||''' || V_COLOUR_CODE1 || ''' 
+       END ACC_NAME,A,
+      \* S.CUR_QTR_REV_TOTAL_CORP,
+       S.PRV_WK_REV_TOTAL_PLAN,
+       S.CUR_WK_REV_TOTAL_PLAN,B,*\
+       S.Cur_Qtr_Hc_Inc_Corp,
+       S.PRV_WK_HC_INC_PLAN,
+S.CUR_WK_HC_INC_PLAN,C,
+S.CUR_QTR_CM_PRCNT_AOP,
+S.PRV_WK_CM_PRCNT_PLAN,
+S.CUR_WK_CM_PRCNT_PLAN,
 
+
+D,
+S.CUR_QTR_TCV_CORP,
+S.PRV_WK_TCV_PLAN,
+S.CUR_WK_TCV_PLAN
+ 
+FROM 
+ (SELECT  ACC_NAME ,
+ ''$$$$'' A ,
+ 
+-- NVL(CUR_QTR_REV_TOTAL_CORP,''-''),
+-- NVL(PRV_WK_REV_TOTAL_PLAN,''-''),
+-- NVL(CUR_WK_REV_TOTAL_PLAN,''-''),
+ 
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+          F_PPT(CUR_QTR_REV_TOTAL_CORP,''V13'')||''' || V_COLOUR_CODE2 || '''
+        ELSE
+            F_PPT(CUR_QTR_REV_TOTAL_CORP,''V13'')||''''
+        END CUR_QTR_REV_TOTAL_CORP,
+        
+       \*    case WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+       F_PPT(CUR_QTR_REV_TOTAL_AOP,''V13'')||'''  || V_COLOUR_CODE2 || '''
+       else
+           F_PPT(CUR_QTR_REV_TOTAL_AOP,''V13'')
+         end CUR_QTR_REV_TOTAL_AOP,*\
+        
+        
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+           F_PPT(PRV_WK_REV_TOTAL_PLAN,''V13'')||''' || V_COLOUR_CODE2 || '''
+        ELSE
+          F_PPT(PRV_WK_REV_TOTAL_PLAN,''V13'')||''''
+        END PRV_WK_REV_TOTAL_PLAN,
+        
+       CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+            CASE WHEN   NVL(PRV_WK_REV_TOTAL_PLAN,0) = 0
+                THEN   F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')  
+        WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) > CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||''' || V_INDIC || '''
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) < CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||''' || V_INDIC1 || '''
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) = CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||''' || V_INDIC2 || '''
+       END 
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+            CASE WHEN   NVL(PRV_WK_REV_TOTAL_PLAN,0) = 0
+                THEN   F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'') ||''' || V_COLOUR_CODE2 || '''
+        WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) > CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||''' || V_INDIC || V_COLOUR_CODE5 || '''
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) < CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||''' || V_INDIC1 || V_COLOUR_CODE5 || '''
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) = CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||''' || V_INDIC2 || V_COLOUR_CODE5 || '''
+        END
+       END CUR_WK_REV_TOTAL_PLAN,
+ 
+ ''$$$$'' B ,
+ ----NVL(T.Cur_Qtr_Hc_Inc_Corp,''-''),
+ ----NVL(T.PRV_WK_HC_INC_PLAN,''-''),
+---NVL(T.CUR_WK_HC_INC_PLAN,''-''),
+
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+          F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+         F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''''
+         END Cur_Qtr_Hc_Inc_Corp,
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+         F_PPT(PRV_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+        F_PPT(PRV_WK_HC_INC_PLAN,''COMMA'')||''''
+         END PRV_WK_HC_INC_PLAN,  
+       CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+           CASE WHEN NVL(PRV_WK_HC_INC_PLAN,0) = 0 THEN  F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')
+        WHEN NVL(PRV_WK_HC_INC_PLAN,0) > CUR_WK_HC_INC_PLAN THEN 
+         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC || '''
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) < CUR_WK_HC_INC_PLAN THEN 
+         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC1 || '''
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) = CUR_WK_HC_INC_PLAN THEN 
+        F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC2 || '''
+       END 
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+          CASE WHEN NVL(PRV_WK_HC_INC_PLAN,0) = 0 THEN  F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+        WHEN NVL(PRV_WK_HC_INC_PLAN,0) > CUR_WK_HC_INC_PLAN THEN 
+        F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC || V_COLOUR_CODE6 || '''
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) < CUR_WK_HC_INC_PLAN THEN 
+         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC1 || V_COLOUR_CODE6 || '''
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) = CUR_WK_HC_INC_PLAN THEN 
+        F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC2 || V_COLOUR_CODE6 || '''
+       END   
+       END CUR_WK_HC_INC_PLAN,
+
+
+''$$$$'' C ,
+---NVL(T.CUR_QTR_CM_PRCNT_AOP,''-''),
+---NVL(T.PRV_WK_CM_PRCNT_PLAN,''-''),
+---NVL(T.CUR_WK_CM_PRCNT_PLAN,''-''),
+
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+         \*case when  f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'') = ''0'' then
+           ''''||''' || V_COLOUR_CODE2 || '''
+         else
+       -----   ''''||''' || V_COLOUR_CODE2 || '''
+        f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         end *\
+         ''-''||''' || V_COLOUR_CODE2 || '''
+         ELSE
+           case when  f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'') = ''0'' then
+           ''-''
+           else
+         
+          f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'')||''%''
+          end
+        END CUR_QTR_CM_PRCNT_AOP,
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+            \*case when  f_ppt(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''0'' then
+              ''''||''' || V_COLOUR_CODE2 || '''
+            else
+              
+       ---- ''''||  ''' || V_COLOUR_CODE2 || '''
+
+         F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'')||''%''||  ''' || V_COLOUR_CODE2 || '''
+         end*\
+         ''-''||''' || V_COLOUR_CODE2 || '''
+         ELSE
+          case when  f_ppt(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''0'' then
+          ''-''
+          else
+            F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'')||''%''
+            end
+        END PRV_WK_CM_PRCNT_PLAN,
+        
+        CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+        \*case when  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''0'' then
+         ''''||''' || V_COLOUR_CODE2 || '''
+        else
+        -----   ''''||  ''' || V_COLOUR_CODE2 || '''
+         F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         end*\
+      
+         
+        \* CASE WHEN NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) = 0 THEN 
+           F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+          WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) > TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+         F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_INDIC || V_COLOUR_CODE5 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) < TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+         F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_INDIC1 || V_COLOUR_CODE5 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) = TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+         
+         
+          CASE WHEN  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''-'' AND F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''-'' THEN
+          F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') ||''%''||'''||V_COLOUR_CODE5||'''
+         ELSE
+        F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_INDIC2 || V_COLOUR_CODE5 ||  '''
+        END
+           ---- F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''' || V_INDIC2 || V_COLOUR_CODE5 || '''
+       END*\
+       ''-''||''' || V_COLOUR_CODE2 || '''
+         
+         
+         
+ 
+         ELSE
+         
+         case when  F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''0'' then
+        CASE WHEN  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''0'' THEN
+             ''-''---- F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')
+           ELSE
+              F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+           END
+       WHEN   
+       NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) > TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+             F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_INDIC || '''
+             
+          WHEN NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) < TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+        F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_INDIC1 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) = TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+           
+         CASE WHEN  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''-'' 
+           AND F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''-'' THEN
+          F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')
+         ELSE
+        F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_INDIC2 || '''
+        END
+       END       
+
+       
+       
+       
+        \* else
+           F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+           end*\
+        END CUR_WK_CM_PRCNT_PLAN,
+
+
+
+
+''$$$$'' D ,
+----NVL(T.CUR_QTR_TCV_CORP,''-''),
+----NVL(T.PRV_WK_TCV_PLAN,''-''),
+----NVL(T.CUR_WK_TCV_PLAN,''-'')
+
+
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+         F_PPT(CUR_QTR_TCV_CORP,''V13'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+       F_PPT(CUR_QTR_TCV_CORP,''V13'')||''''
+        END CUR_QTR_TCV_CORP,
+        
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+       F_PPT(PRV_WK_TCV_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+        F_PPT(PRV_WK_TCV_PLAN,''COMMA'')||''''
+        END PRV_WK_TCV_PLAN,
+        
+       CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN 
+          CASE WHEN NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) = 0 
+            THEN F_PPT(CUR_WK_TCV_PLAN,''COMMA'')
+        WHEN NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) > TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+      F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_INDIC || '''
+         WHEN NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) < TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+        F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_INDIC1 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) = TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+           
+         CASE WHEN  F_PPT(CUR_WK_TCV_PLAN,''V13'') = ''-'' 
+           AND F_PPT(PRV_WK_TCV_PLAN,''V13'') = ''-'' THEN
+          F_PPT(CUR_WK_TCV_PLAN,''COMMA'')
+         ELSE
+        F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_INDIC2 || '''
+        END
+       END 
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+          CASE WHEN NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) = 0 THEN 
+            F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+          WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) > TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+         F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_INDIC || V_COLOUR_CODE6 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) < TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+         F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_INDIC1 || V_COLOUR_CODE6 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) = TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+         
+         
+          CASE WHEN  F_PPT(CUR_WK_TCV_PLAN,''V13'') = ''-'' AND F_PPT(PRV_WK_TCV_PLAN,''V13'') = ''-'' THEN
+          F_PPT(CUR_WK_TCV_PLAN,''COMMA'') ||'''||V_COLOUR_CODE6||'''
+         ELSE
+        F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_INDIC2 || V_COLOUR_CODE6 ||  '''
+        END
+         
+     
+         
+       ---- F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_INDIC2 || V_COLOUR_CODE6 || '''
+       END
+       END CUR_WK_TCV_PLAN
+
+
+
+FROM(SELECT ZZ.ACC_NAME,
+ZZ.CUR_QTR_REV_TOTAL_CORP,
+ZZ.PRV_WK_REV_TOTAL_PLAN,
+ZZ.CUR_WK_REV_TOTAL_PLAN,
+ZZ.Cur_Qtr_Hc_Inc_Corp,
+ZZ.PRV_WK_HC_INC_PLAN,
+ZZ.CUR_WK_HC_INC_PLAN,
+ZZ.CUR_QTR_CM_PRCNT_AOP,
+
+ zz.PRV_WK_CM_PRCNT_PLAN,
+  
+  zz.CUR_WK_CM_PRCNT_PLAN,
+  
+
+ROUND(CUR_QTR_TCV_CORP) CUR_QTR_TCV_CORP,
+ROUND(PRV_WK_TCV_PLAN) PRV_WK_TCV_PLAN,
+ROUND(CUR_WK_TCV_PLAN)CUR_WK_TCV_PLAN
+ FROM( SELECT NVL(ACC_NAME,''Total'')ACC_NAME,
+SUM(CUR_QTR_REV_TOTAL_CORP)CUR_QTR_REV_TOTAL_CORP,
+SUM(PRV_WK_REV_TOTAL_PLAN)PRV_WK_REV_TOTAL_PLAN,
+SUM(NVL(CUR_WK_REV_TOTAL_PLAN,PRV_WK_REV_TOTAL_PLAN))CUR_WK_REV_TOTAL_PLAN,
+SUM(Cur_Qtr_Hc_Inc_Corp)Cur_Qtr_Hc_Inc_Corp,
+SUM(PRV_WK_HC_INC_PLAN)PRV_WK_HC_INC_PLAN,
+SUM(NVL(CUR_WK_HC_INC_PLAN,PRV_WK_HC_INC_PLAN))CUR_WK_HC_INC_PLAN,
+SUM(CUR_QTR_CM_PRCNT_AOP)CUR_QTR_CM_PRCNT_AOP,
+
+
+case when acc_name is null then 
+   sum(prev_gm_total)
+   else SUM(PREV_QTR_PLAN_GM)
+     end PRV_WK_CM_PRCNT_PLAN,
+     
+  case when acc_name is null then 
+   sum(NVL(curr_gm_total,prev_gm_total))
+else
+SUM(NVL(CURR_QTR_PLAN_GM,PREV_QTR_PLAN_GM))
+end CUR_WK_CM_PRCNT_PLAN,
+
+
+SUM(CUR_QTR_TCV_CORP)CUR_QTR_TCV_CORP,
+SUM(PRV_WK_TCV_PLAN)PRV_WK_TCV_PLAN,
+SUM(NVL(CURR_WK_TCV_PLAN,PRV_WK_TCV_PLAN)) CUR_WK_TCV_PLAN
+FROM(
+
+
+
+
+
+
+
+SELECT CASE WHEN K.FILE_UPLOADED = ''N''
+ 
+
+THEN ACC_NAME||''*''
+
+ ELSE
+ACC_NAME end acc_name,
+
+\*CASE WHEN C.CURR_QTR_PLAN_REV = 0 or C.CURR_QTR_PLAN_REV is null AND B.PREV_QTR_PLAN_REV <> 0  
+THEN ACC_NAME||''*''*\
+
+\* ELSE
+ACC_NAME end acc_name,*\
+E.CURR_QTR_REV_AOP_REV CUR_QTR_REV_TOTAL_CORP,
+B.PREV_QTR_PLAN_REV PRV_WK_REV_TOTAL_PLAN,
+C.CURR_QTR_PLAN_REV CUR_WK_REV_TOTAL_PLAN,
+E.CURR_QTR_REV_AOP_HC Cur_Qtr_Hc_Inc_Corp,
+B.PREV_QTR_PLAN_HC PRV_WK_HC_INC_PLAN,
+C.CURR_QTR_PLAN_HC CUR_WK_HC_INC_PLAN,
+E.CURR_QTR_REV_AOP_GM CUR_QTR_CM_PRCNT_AOP,
+
+
+ 
+   b.prev_gm_total prev_gm_total,
+ B.PREV_QTR_PLAN_GM PREV_QTR_PLAN_GM,
+    
+     
+ 
+  c.curr_gm_total curr_gm_total,
+
+C.CURR_QTR_PLAN_GM CURR_QTR_PLAN_GM,
+
+
+
+E.CURR_QTR_REV_AOP_TCV CUR_QTR_TCV_CORP,
+B.PREV_QTR_PLAN_TCV PRV_WK_TCV_PLAN,
+C.CURR_QTR_PLAN_TCV CURR_WK_TCV_PLAN
+FROM (
+(select distinct b.account_id,b.SHORT_NAME ACC_NAME from new_btg_account_mapping b
+WHERE 1=1 \*B.IOU_ID <> 263*\  '||V_SMP_COND||'
+order by SHORT_NAME asc)A
+LEFT OUTER JOIN
+(SELECT T.ACCOUNT_ID,SUM(T.TOTAL_REV)PREV_QTR_PLAN_REV,SUM(T.INCR_HC)PREV_QTR_PLAN_HC,SUM(T.CM_MARGIN)PREV_QTR_PLAN_GM,
+SUM(T.TCV_BMN_USD)PREV_QTR_PLAN_TCV,sum((1- (CM_MARGIN/100))*TOTAL_REV)PREV_gm_total
+FROM BTG_WKLY_PL_TGT T 
+WHERE UPPER(T.PERIOD) LIKE ''%OUTLOOK%''
+AND T.FILE_DATE = (select max(t.file_date) from btg_wkly_pl_tgt t where t.file_date < '''||V_FILE_DATE||''')
+GROUP BY ACCOUNT_ID)B
+ON A.ACCOUNT_ID = B.ACCOUNT_ID
+
+LEFT OUTER JOIN
+
+(SELECT T.ACCOUNT_ID,SUM(T.TOTAL_REV)CURR_QTR_PLAN_REV,SUM(T.INCR_HC)CURR_QTR_PLAN_HC,SUM(T.CM_MARGIN)CURR_QTR_PLAN_GM,
+SUM(T.TCV_BMN_USD)CURR_QTR_PLAN_TCV,sum((1- (CM_MARGIN/100))*TOTAL_REV)curr_gm_total
+FROM BTG_WKLY_PL_TGT T 
+WHERE UPPER(T.PERIOD) LIKE ''%OUTLOOK%''
+AND T.FILE_DATE = ''' || V_DATE || '''
+GROUP BY ACCOUNT_ID)C
+ON A.ACCOUNT_ID = C.ACCOUNT_ID
+
+
+
+LEFT OUTER JOIN
+
+(SELECT N.ACCOUNT_ID,SUM(N.TOTAL_REV)CURR_QTR_REV_AOP_REV,SUM(N.INCR_HC)CURR_QTR_REV_AOP_HC,SUM(N.CM_MARGIN)CURR_QTR_REV_AOP_GM,
+SUM(N.TCV_BMN_USD)CURR_QTR_REV_AOP_TCV,sum(N.CM_MARGIN)CURR_QTR_REV_AOP_CM
+FROM BTG_WKLY_PL_PMO_TGT N
+WHERE UPPER(N.PERIOD) LIKE ''%REVISED%''
+AND N.QUATER=''' || V_CURR_QTR || '''
+GROUP BY ACCOUNT_ID)  E
+ON A.ACCOUNT_ID = E.ACCOUNT_ID
+
+LEFT OUTER JOIN
+(SELECT  distinct T.ACCOUNT_ID,MAX(t.FILE_UPLOADED) FILE_UPLOADED from wkly_rep_frz_unfrz_btg T 
+WHERE 
+
+ T.FILE_DATE =   '''||V_DATE||'''
+GROUP BY ACCOUNT_ID )K
+ON A.ACCOUNT_ID = K.ACCOUNT_ID
+
+
+)
+
+)
+GROUP BY ROLLUP(ACC_NAME))ZZ
+
+)
+order by case when acc_name <> ''Total'' then ''1'' else ''2'' end
+)S';
+*/
 
 QRY := ' SELECT CASE WHEN FILE_UPLOADED = ''Y'' THEN ACC_NAME ELSE replace(ACC_NAME,''~'',''*~'') END ACC_NAME,''$$$$'' B ,
 Cur_Qtr_Hc_Inc_Corp,
@@ -12474,8 +14914,7 @@ CUR_QTR_TCV_CORP,PRV_WK_TCV_PLAN,CUR_WK_TCV_PLAN FROM
  CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
           F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''' || V_COLOUR_CODE3 || '''
          ELSE
-         TO_CHAR(Cur_Qtr_Hc_Inc_Corp)
-        -- F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''''
+         F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''''
          END Cur_Qtr_Hc_Inc_Corp,
          CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN F_PPT(PREV_OFF_TOTAL,''COMMA'')||''' || V_COLOUR_CODE3 || '''
          ELSE
@@ -12515,6 +14954,7 @@ CUR_QTR_TCV_CORP,PRV_WK_TCV_PLAN,CUR_WK_TCV_PLAN FROM
          F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC1 || V_COLOUR_CODE6 || '''
          WHEN NVL(PRV_WK_HC_INC_PLAN,0) = CUR_WK_HC_INC_PLAN THEN 
         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_INDIC2 || V_COLOUR_CODE6 || '''
+        
        END   
        END CUR_WK_HC_INC_PLAN,
 
@@ -12875,6 +15315,42 @@ COMMIT;
       O_SLIDE_FOOTER := '';
       IF I_GRID_COUNT = 1 THEN
     
+       /* V_HDR1 := '\*''REVENUE' || V_COLOUR_CODE2 || ''',
+            ''REVENUE' || V_COLOUR_CODE2 || ''',
+           
+           ''$$$$'',*\
+           ''Inc HC' || V_COLOUR_CODE3 || ''',
+           ''Inc HC' || V_COLOUR_CODE3 || ''',
+         
+           ''$$$$'',
+           ''GM' || V_COLOUR_CODE2 || ''',
+           ''GM' || V_COLOUR_CODE2 || ''',
+          
+           ''$$$$'',
+           ''TCV' || V_COLOUR_CODE3 || ''',
+         ''TCV' || V_COLOUR_CODE3 || '''';
+    
+      V_HDR2 := ' ----===revenue
+       \*''Revised Target' || V_COLOUR_CODE2 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE2 || ''',
+      
+       ''$$$$'',*\
+       ---===hc
+       ''WFP' || V_COLOUR_CODE3 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE3 || ''',
+       ''$$$$'',
+       ---===CM
+       ''Revised Target' || V_COLOUR_CODE2 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE2 || ''',
+       ''$$$$'',
+        ---===TCV
+       ''Revised Target' || V_COLOUR_CODE3 || ''',
+       ''Curr. Week Outlook' || V_COLOUR_CODE3 || '''';
+       */
+       
+       
+       ---- for new hc structure 
+       
         V_HDR1 := '/*''REVENUE' || V_COLOUR_CODE2 || ''',
             ''REVENUE' || V_COLOUR_CODE2 || ''',
            
@@ -12920,31 +15396,343 @@ COMMIT;
 
         ''$$$$'',
        ---===CM
-       ''Revised Target' || V_COLOUR_CODE2 || ''',
+        ''Revised Target' || V_COLOUR_CODE2 || ''',
        ''Curr. Week Outlook' || V_COLOUR_CODE2 || ''',
        ''$$$$'',
-        ---===TCV
-       ''Revised Target' || V_COLOUR_CODE3 || ''',
+      ---===TCV
+        ''Revised Target' || V_COLOUR_CODE3 || ''',
        ''Curr. Week Outlook' || V_COLOUR_CODE3 || '''';
        
        
           O_SLIDE_TITLE := '' || V_HEADER || ' '''||V_SMP_HEADER||'''  (' ||V_HEADER_DATE_4 || ')'||'##'||V_APPEND||'';
 
           ------====Data
+ /*QRY := 'SELECT CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+       CASE WHEN MOD(ROWNUM,2) = 0 ---=====to give colour code for alternate rows
+       AND UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+       ACC_NAME||''' || V_DATA_COLOUR1 || '''
+       ELSE
+       ACC_NAME||''' || V_DATA_COLOUR2 || '''
+       END
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+       ACC_NAME||''' || V_COLOUR_CODE1 || ''' 
+       END ACC_NAME,A,
+      \* S.CUR_QTR_REV_TOTAL_CORP,
+     ----  S.CUR_QTR_REV_TOTAL_AOP,
+      ---- S.PRV_WK_REV_TOTAL_PLAN,
+       S.CUR_WK_REV_TOTAL_PLAN,B,*\
+       S.Cur_Qtr_Hc_Inc_Corp,
+      ---- S.PRV_WK_HC_INC_PLAN,
+S.CUR_WK_HC_INC_PLAN,C,
+S.CUR_QTR_CM_PRCNT_AOP,
+---S.PRV_WK_CM_PRCNT_PLAN,
+S.CUR_WK_CM_PRCNT_PLAN,
 
+
+D,
+S.CUR_QTR_TCV_CORP,
+---S.PRV_WK_TCV_PLAN,
+S.CUR_WK_TCV_PLAN
+ 
+FROM 
+ (SELECT  ACC_NAME ,
+ ''$$$$'' A ,
+ 
+ ---NVL(T.CUR_QTR_REV_TOTAL_CORP,''-''),
+ ---NVL(T.PRV_WK_REV_TOTAL_PLAN,''-''),
+ ----NVL(T.CUR_WK_REV_TOTAL_PLAN,''-''),
+ 
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+          F_PPT(CUR_QTR_REV_TOTAL_CORP,''V13'')||''' || V_COLOUR_CODE2 || '''
+        ELSE
+            F_PPT(CUR_QTR_REV_TOTAL_CORP,''V13'')||''''
+        END CUR_QTR_REV_TOTAL_CORP,
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+           F_PPT(PRV_WK_REV_TOTAL_PLAN,''V13'')||''' || V_COLOUR_CODE2 || '''
+        ELSE
+          F_PPT(PRV_WK_REV_TOTAL_PLAN,''V13'')||''''
+        END PRV_WK_REV_TOTAL_PLAN,
+        
+       CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+       CASE WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) > CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) < CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) = CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')
+       END 
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+       CASE WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) > CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||'''  || V_COLOUR_CODE2 || '''
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) < CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||''' || V_COLOUR_CODE2 || '''
+         WHEN NVL(PRV_WK_REV_TOTAL_PLAN,0) = CUR_WK_REV_TOTAL_PLAN THEN 
+         F_PPT(CUR_WK_REV_TOTAL_PLAN,''V13'')||'''  || V_COLOUR_CODE2 || '''
+        END
+       END CUR_WK_REV_TOTAL_PLAN,
+       \* case WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+       F_PPT(CUR_QTR_REV_TOTAL_AOP,''V13'')||'''  || V_COLOUR_CODE2 || '''
+       else
+           F_PPT(CUR_QTR_REV_TOTAL_AOP,''V13'')
+         end CUR_QTR_REV_TOTAL_AOP,*\
+ 
+ ''$$$$'' B ,
+ ----NVL(T.Cur_Qtr_Hc_Inc_Corp,''-''),
+ ----NVL(T.PRV_WK_HC_INC_PLAN,''-''),
+---NVL(T.CUR_WK_HC_INC_PLAN,''-''),
+
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+          F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+         F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''''
+         END Cur_Qtr_Hc_Inc_Corp,
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+         F_PPT(PRV_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+        F_PPT(PRV_WK_HC_INC_PLAN,''COMMA'')||''''
+         END PRV_WK_HC_INC_PLAN,  
+       CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN
+       CASE WHEN NVL(PRV_WK_HC_INC_PLAN,0) > CUR_WK_HC_INC_PLAN THEN 
+         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) < CUR_WK_HC_INC_PLAN THEN 
+         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) = CUR_WK_HC_INC_PLAN THEN 
+        F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')
+       END 
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+       CASE WHEN NVL(PRV_WK_HC_INC_PLAN,0) > CUR_WK_HC_INC_PLAN THEN 
+        F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) < CUR_WK_HC_INC_PLAN THEN 
+         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         WHEN NVL(PRV_WK_HC_INC_PLAN,0) = CUR_WK_HC_INC_PLAN THEN 
+        F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||'''  || V_COLOUR_CODE3 || '''
+       END   
+       END CUR_WK_HC_INC_PLAN,
+
+
+''$$$$'' C ,
+---NVL(T.CUR_QTR_CM_PRCNT_AOP,''-''),
+---NVL(T.PRV_WK_CM_PRCNT_PLAN,''-''),
+---NVL(T.CUR_WK_CM_PRCNT_PLAN,''-''),
+
+ \*CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+   ''''||''' || V_COLOUR_CODE2 || '''
+       -----  f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         ELSE
+          f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'')||''%''
+        END CUR_QTR_CM_PRCNT_AOP,*\
+        
+        CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+         \*case when  f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'') = ''0'' then
+           ''''||''' || V_COLOUR_CODE2 || '''
+         else
+       -----   ''''||''' || V_COLOUR_CODE2 || '''
+        f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         end *\
+         ''-''||''' || V_COLOUR_CODE2 || '''
+         ELSE
+           case when  f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'') = ''0'' then
+           ''-''
+           else
+         
+          f_ppt(CUR_QTR_CM_PRCNT_AOP,''V3'')||''%''
+          end
+        END CUR_QTR_CM_PRCNT_AOP,
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+         \*''''||  ''' || V_COLOUR_CODE2 || '''
+        ---- F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'')||''%''||  ''' || V_COLOUR_CODE2 || '''*\
+         ''-''||''' || V_COLOUR_CODE2 || '''
+         ELSE
+            F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'')||''%''
+        END PRV_WK_CM_PRCNT_PLAN,
+      \*  CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+          ''''||''' || V_COLOUR_CODE2 || '''
+        ---- F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         ELSE
+           F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+        END CUR_WK_CM_PRCNT_PLAN,
+*\
+
+
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN 
+        \*case when  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''0'' then
+         ''''||''' || V_COLOUR_CODE2 || '''
+        else
+        -----   ''''||  ''' || V_COLOUR_CODE2 || '''
+         F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         end*\
+      
+         
+        \* CASE WHEN NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) = 0 THEN 
+           F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+          WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) > TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+         F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) < TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+         F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||''' || V_COLOUR_CODE2 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) = TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+         
+         
+          CASE WHEN  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''-'' AND F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''-'' THEN
+          F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') ||''%''||'''||V_COLOUR_CODE2||'''
+         ELSE
+        F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''||'''  || V_COLOUR_CODE2 ||  '''
+        END
+           ---- F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''' || V_COLOUR_CODE2 || '''
+       END*\
+          ''-''||''' || V_COLOUR_CODE2 || '''
+         
+         
+ 
+         ELSE
+         
+         case when  F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''0'' then
+        CASE WHEN  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''0'' THEN
+             ''-''---- F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')
+           ELSE
+              F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+           END
+       WHEN   
+       NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) > TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+             F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+             
+          WHEN NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) < TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+        F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+         WHEN  NVL(TO_NUMBER(PRV_WK_CM_PRCNT_PLAN),0) = TO_NUMBER(CUR_WK_CM_PRCNT_PLAN) THEN
+           
+         CASE WHEN  F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'') = ''-'' 
+           AND F_PPT(PRV_WK_CM_PRCNT_PLAN,''V3'') = ''-'' THEN
+          F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')
+         ELSE
+        F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+        END
+       END       
+
+       
+       
+       
+        \* else
+           F_PPT(CUR_WK_CM_PRCNT_PLAN,''V3'')||''%''
+           end*\
+        END CUR_WK_CM_PRCNT_PLAN,
+
+''$$$$'' D ,
+----NVL(T.CUR_QTR_TCV_CORP,''-''),
+----NVL(T.PRV_WK_TCV_PLAN,''-''),
+----NVL(T.CUR_WK_TCV_PLAN,''-'')
+
+
+ CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+         F_PPT(CUR_QTR_TCV_CORP,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+       F_PPT(CUR_QTR_TCV_CORP,''COMMA'')||''''
+        END CUR_QTR_TCV_CORP,
+       CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
+       F_PPT(PRV_WK_TCV_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         ELSE
+        F_PPT(PRV_WK_TCV_PLAN,''COMMA'')||''''
+        END PRV_WK_TCV_PLAN,
+       CASE WHEN UPPER(ACC_NAME) NOT LIKE ''%TOTAL%'' THEN 
+       CASE WHEN NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) > TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+      F_PPT(CUR_WK_TCV_PLAN,''COMMA'')
+         WHEN NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) < TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+        F_PPT(CUR_WK_TCV_PLAN,''COMMA'')
+         WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) = TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+        F_PPT(CUR_WK_TCV_PLAN,''COMMA'')
+       END 
+       WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
+         CASE WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) > TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+         F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) < TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+         F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||'''  || V_COLOUR_CODE3 || '''
+         WHEN  NVL(TO_NUMBER(PRV_WK_TCV_PLAN),0) = TO_NUMBER(CUR_WK_TCV_PLAN) THEN
+        F_PPT(CUR_WK_TCV_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+       END
+       END CUR_WK_TCV_PLAN
+
+
+
+FROM ( SELECT ZZ.ACC_NAME,
+ZZ.CUR_QTR_REV_TOTAL_CORP,
+ZZ.PRV_WK_REV_TOTAL_PLAN,
+ZZ.CUR_WK_REV_TOTAL_PLAN,
+ZZ.Cur_Qtr_Hc_Inc_Corp,
+ZZ.PRV_WK_HC_INC_PLAN,
+ZZ.CUR_WK_HC_INC_PLAN,
+ZZ.CUR_QTR_CM_PRCNT_AOP,
+
+zz.PRV_WK_CM_PRCNT_PLAN,
+zz.CUR_WK_CM_PRCNT_PLAN,
+
+
+ROUND(CUR_QTR_TCV_CORP) CUR_QTR_TCV_CORP,
+ROUND(PRV_WK_TCV_PLAN) PRV_WK_TCV_PLAN,
+ROUND(CUR_WK_TCV_PLAN) CUR_WK_TCV_PLAN
+ FROM(  SELECT NVL(A.ACC_NAME,''Total'')ACC_NAME,
+SUM(E.CURR_QTR_REV_AOP_REV)CUR_QTR_REV_TOTAL_CORP,SUM(B.PREV_QTR_PLAN_REV)PRV_WK_REV_TOTAL_PLAN,SUM(C.CURR_QTR_PLAN_REV)CUR_WK_REV_TOTAL_PLAN,
+SUM(E.CURR_QTR_REV_AOP_HC)Cur_Qtr_Hc_Inc_Corp,SUM(B.PREV_QTR_PLAN_HC)PRV_WK_HC_INC_PLAN,SUM(C.CURR_QTR_PLAN_HC)CUR_WK_HC_INC_PLAN,
+SUM(E.CURR_QTR_REV_AOP_GM)CUR_QTR_CM_PRCNT_AOP,
+---SUM(B.PREV_QTR_PLAN_GM)PRV_WK_CM_PRCNT_PLAN,
+---SUM(C.CURR_QTR_PLAN_GM) CUR_WK_CM_PRCNT_PLAN,
+
+case when acc_name is null then 
+   sum(b.prev_gm_total)
+   else SUM(B.PREV_QTR_PLAN_GM)
+     end PRV_WK_CM_PRCNT_PLAN,
+     
+  case when acc_name is null then 
+   sum(c.curr_gm_total)
+else
+SUM(C.CURR_QTR_PLAN_GM)
+end CUR_WK_CM_PRCNT_PLAN,
+
+
+SUM(E.CURR_QTR_REV_AOP_TCV)CUR_QTR_TCV_CORP,SUM(B.PREV_QTR_PLAN_TCV)PRV_WK_TCV_PLAN,SUM(C.CURR_QTR_PLAN_TCV) CUR_WK_TCV_PLAN
+FROM (
+(select distinct b.account_id,b.SHORT_NAME ACC_NAME from new_btg_account_mapping b
+WHERE\* B.IOU_ID <> 263*\ 1=1
+order by SHORT_NAME asc)A
+LEFT OUTER JOIN
+(SELECT T.ACCOUNT_ID,SUM(T.TOTAL_REV)PREV_QTR_PLAN_REV,SUM(T.INCR_HC)PREV_QTR_PLAN_HC,SUM(T.CM_MARGIN)PREV_QTR_PLAN_GM,
+SUM(T.TCV_BMN_USD)PREV_QTR_PLAN_TCV,sum((1- (CM_MARGIN/100))*TOTAL_REV)PREV_gm_total
+FROM BTG_WKLY_PL_TGT T 
+WHERE UPPER(T.PERIOD) LIKE ''%OUTLOOK%''
+AND T.FILE_DATE = TO_CHAR(TO_DATE('''||V_DATE||''',''DD-MON-RR'') - 7,''DD-MON-RR'')
+GROUP BY ACCOUNT_ID)B
+ON A.ACCOUNT_ID = B.ACCOUNT_ID
+
+LEFT OUTER JOIN
+
+(SELECT T.ACCOUNT_ID,SUM(T.TOTAL_REV)CURR_QTR_PLAN_REV,SUM(T.INCR_HC)CURR_QTR_PLAN_HC,SUM(T.CM_MARGIN)CURR_QTR_PLAN_GM,
+SUM(T.TCV_BMN_USD)CURR_QTR_PLAN_TCV,sum((1- (CM_MARGIN/100))*TOTAL_REV)curr_gm_total
+FROM BTG_WKLY_PL_TGT T 
+WHERE UPPER(T.PERIOD) LIKE ''%OUTLOOK%''
+AND T.FILE_DATE = ''' || V_DATE || '''
+GROUP BY ACCOUNT_ID)C
+ON A.ACCOUNT_ID = C.ACCOUNT_ID
+LEFT OUTER JOIN
+
+(SELECT N.ACCOUNT_ID,SUM(N.TOTAL_REV)CURR_QTR_REV_AOP_REV,SUM(N.INCR_HC)CURR_QTR_REV_AOP_HC,SUM(N.CM_MARGIN)CURR_QTR_REV_AOP_GM,
+SUM(N.TCV_BMN_USD)CURR_QTR_REV_AOP_TCV,sum(N.CM_MARGIN)CURR_QTR_REV_AOP_CM
+FROM BTG_WKLY_PL_PMO_TGT N
+WHERE UPPER(N.PERIOD) LIKE ''%REVISED%''
+AND N.QUATER=''' || V_CURR_QTR || '''
+GROUP BY ACCOUNT_ID)  E
+ON A.ACCOUNT_ID = E.ACCOUNT_ID
+
+
+
+)
+GROUP BY ROLLUP(ACC_NAME))ZZ
+
+)order by case when acc_name <> ''Total'' then ''1'' else ''2'' end)S';*/
 
 
 QRY :=' SELECT CASE WHEN FILE_UPLOADED = ''Y'' THEN ACC_NAME ELSE replace(ACC_NAME,''~'',''*~'') END ACC_NAME,''$$$$'' B ,
 Cur_Qtr_Hc_Inc_Corp,
  --PREV_OFF_TOTAL,PREV_ON_TOTAL,PRV_WK_HC_INC_PLAN,
- --CASE WHEN FILE_UPLOADED = ''Y'' THEN REPLACE(cur_ofF_total,''-'',''0'') ELSE ''-'' END CUR_OFF_TOTAL,CASE WHEN FILE_UPLOADED = ''Y'' THEN REPLACE(cur_ON_total,''-'',''0'') ELSE ''-'' END CUR_ON_TOTAL,
- --CASE WHEN FILE_UPLOADED = ''Y'' THEN REPLACE(CUR_WK_HC_INC_PLAN,''-'',''0'') ELSE ''-'' END CUR_WK_HC_INC_PLAN,
-CASE WHEN FILE_UPLOADED = ''Y'' AND cur_ofF_total = ''-'' THEN ''0''
- WHEN FILE_UPLOADED = ''Y'' OR UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN  cur_ofF_total ELSE ''-'' END CUR_OFF_TOTAL,
- CASE WHEN FILE_UPLOADED = ''Y'' AND cur_ON_total = ''-'' THEN ''0''
- WHEN FILE_UPLOADED = ''Y'' OR UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN  cur_ON_total ELSE ''-'' END cur_ON_total,
- CASE WHEN FILE_UPLOADED = ''Y'' AND CUR_WK_HC_INC_PLAN = ''-'' THEN ''0''
- WHEN FILE_UPLOADED = ''Y'' OR UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN  CUR_WK_HC_INC_PLAN ELSE ''-'' END CUR_WK_HC_INC_PLAN,
+ cur_ofF_total,cur_ON_total,
+ CUR_WK_HC_INC_PLAN,
+
 
 ''$$$$'' C ,CUR_QTR_CM_PRCNT_AOP,
 --PRV_WK_CM_PRCNT_PLAN,
@@ -12975,8 +15763,8 @@ CUR_WK_TCV_PLAN FROM
  CASE WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%''THEN 
           F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''' || V_COLOUR_CODE3 || '''
          ELSE
-        -- F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''''
-        TO_CHAR(Cur_Qtr_Hc_Inc_Corp)
+         --F_PPT(Cur_Qtr_Hc_Inc_Corp,''COMMA'')||''''
+         TO_CHAR(Cur_Qtr_Hc_Inc_Corp)
          END Cur_Qtr_Hc_Inc_Corp,
          PREV_OFF_TOTAL,
          PREV_ON_TOTAL,
@@ -13001,6 +15789,8 @@ CUR_WK_TCV_PLAN FROM
          F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')
          WHEN NVL(PRV_WK_HC_INC_PLAN,0) = CUR_WK_HC_INC_PLAN THEN 
         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')
+         WHEN NVL(CUR_WK_HC_INC_PLAN,0) = 0 THEN  F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')
+        
        END 
        WHEN UPPER(ACC_NAME) LIKE ''%TOTAL%'' THEN
           CASE WHEN NVL(PRV_WK_HC_INC_PLAN,0) = 0 THEN  F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
@@ -13010,6 +15800,7 @@ CUR_WK_TCV_PLAN FROM
          F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
          WHEN NVL(PRV_WK_HC_INC_PLAN,0) = CUR_WK_HC_INC_PLAN THEN 
         F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
+         WHEN NVL(CUR_WK_HC_INC_PLAN,0) = 0 THEN  F_PPT(CUR_WK_HC_INC_PLAN,''COMMA'')||''' || V_COLOUR_CODE3 || '''
        END   
        END CUR_WK_HC_INC_PLAN,
 
@@ -13506,6 +16297,7 @@ END IF;
   
   
 END SP_TGT_DATE_CHECK;
+
 PROCEDURE SP_HC_STATUS_FRZ_UNFRZ(I_LOGGED_EMP_ID   IN NUMBER,
                                 I_COORPORATE  IN NUMBER,
                                 I_BU    IN NUMBER,
@@ -13593,6 +16385,34 @@ PROCEDURE SP_HC_STATUS_FRZ_UNFRZ(I_LOGGED_EMP_ID   IN NUMBER,
   END IF;
 
   END SP_HC_STATUS_FRZ_UNFRZ;
+  
+  
+  PROCEDURE SP_WEEKLY_SCHEDULER_FREEZE IS
+  
+    V_DATE       VARCHAR2(1000);
+    V_ID         VARCHAR2(4000);
+    QRY          LONG;
+    V_ISU        SYS_REFCURSOR;
+    V_ISU_ID     NUMBER;
+    V_SHEET_NAME SYS_REFCURSOR;
+    V_SHEET      VARCHAR2(1000);
+  BEGIN
+    QRY := 'SELECT TRUNC(SYSDATE) - INTERVAL ''7'' DAY AS NEXT_FRIDAY
+                 FROM DUAL';
+  
+    EXECUTE IMMEDIATE QRY
+      INTO V_DATE;
+    QRY:='UPDATE WKLY_REP_FRZ_UNFRZ_BTG T SET T.FILE_UPLOADED = ''Y'',T.FREEZE_FLAG =''Y'' WHERE T.FILE_DATE=TO_DATE('''||V_DATE||''',''DD-MON-YY'')';
+    
+    EXECUTE IMMEDIATE QRY;
+    COMMIT;
+    
+   
+  
+  END SP_WEEKLY_SCHEDULER_FREEZE;
+  
+ 
+
 PROCEDURE SP_WEEKLY_TEMPLATE_HC(I_EMP_ID        IN NUMBER,
                                 I_CORP_ID       IN NUMBER,
                                 I_BG_ID         IN VARCHAR2,
@@ -13678,7 +16498,7 @@ BEGIN
     
       V_PIVOT_LIST := '''' || FN_FETCH_FIRST_MONTH(V_CUR_QTR) || ''' AS ' ||
                       TO_CHAR(FN_FETCH_FIRST_MONTH(V_CUR_QTR), 'Mon');
-                      
+     --value inserting                 
                       
       QRY := 'INSERT INTO BTG_WSR_HC_TGT
           SELECT A.IOU_ID,
@@ -14155,7 +16975,7 @@ BEGIN
     EXECUTE IMMEDIATE QRY;
   
     COMMIT;
-    
+   --insert query fro insertig any null values  
     
     QRY:= 'INSERT INTO BTG_WSR_HC_TGT
           SELECT *
@@ -14726,6 +17546,343 @@ BEGIN
   select substr(fn_fetch_qtr(V_PERIOD), 2, 1) into O_TCV_COL from dual;
 
 END SP_WEEKLY_TEMPLATE_HC;
+ 
+ 
+ 
+ PROCEDURE SP_WKLY_MONTHLY_GRID_BTG(I_LOGGED_EMP_ID IN NUMBER,
+                                                     I_COORPORATE    IN VARCHAR2,
+                                                     I_BU            IN VARCHAR2,
+                                                     I_ISU           IN NUMBER,
+                                                     I_CLUS_ID       IN NUMBER,
+                                                     I_ACC           IN NUMBER,
+                                                     I_DATE          IN VARCHAR2,
+                                                     O_HEADER        OUT SYS_REFCURSOR,
+                                                     O_DATA          OUT SYS_REFCURSOR,
+                                                     O_VAR_DATA      OUT VARCHAR2) IS
+  QRY          CLOB;
+  QRY_1        CLOB;
+  V_FILE_DATE  DATE;
+  V_CURR_WEEK  VARCHAR2(1000);
+  V_CURR_MONTH VARCHAR2(1000);
+  -- V_BU  VARCHAR2(1000);
+  -- v_isu varchar2(1000);
+  V_CURR_QTR  VARCHAR2(1000);
+  V_SYS_DATE  varchar2(400); --DATE;
+  V_LAST_WEEK varchar2(400); --DATE;         
+  V_DATE_1    varchar2(1000);
+  V_DATE_2    varchar2(1000);
+  V_DATE_3    varchar2(1000);
+  V_DATE_4    varchar2(1000);
+  V_DATE_5    varchar2(1000);
+  V_CNT       NUMBER;
+  V_CUR_1     SYS_REFCURSOR;
+  V_FIRST_1   DATE;
+  V_FIRST_2   DATE;
+  V_FIRST_3   DATE;
+  V_FIRST_4   DATE;
+  V_LAST_4    DATE;
+  V_LAST_3    DATE;
+  V_LAST_2    DATE;
+  V_LAST_1    DATE;
+  V_DATE_11   VARCHAR2(100);
+  V_DATE_12   VARCHAR2(100);
+
+  V_DATE_13 VARCHAR2(100);
+
+  V_DATE_14 VARCHAR2(100);
+  V_DATE_15 VARCHAR2(100);
+
+  v_first_5 date;
+  v_last_5  date;
+  v_month   varchar2(1000);
+  V_COND    varchar2(1000);
+  V_COND_1  VARCHAR2(1000);
+  V_COND_2  VARCHAR2(1000);
+  V_COND_4  VARCHAR2(1000);
+  V_M       VARCHAR2(100);
+
+BEGIN
+
+  INSERT INTO WEEKLY_REPORT_SP_INPUT_LOG
+  VALUES
+    (I_LOGGED_EMP_ID,
+     SYSDATE,
+     'PKG_WSR_UPLOAD.SP_WKLY_GRID',
+     I_LOGGED_EMP_ID || '-I_LOGGED_EMP_ID ' || I_COORPORATE ||
+     ' -I_COORPORATE ' || I_BU || '-I_BU ' || I_ISU || '-I_ISU ' || I_DATE ||
+     ' -I_DATE',
+     '',
+     '',
+     '');
+
+  COMMIT;
+
+  PKG_BTG_WSR_DOWNLOAD.SP_WEEKLY_FILE_DATE(TO_DATE(I_DATE, 'DD/MM/RRRR'),
+                                           V_FILE_DATE,
+                                           V_CURR_MONTH,
+                                           V_CURR_QTR);
+
+  PKG_BTG_WSR_DOWNLOAD.SP_WEEKLY_FILE_DATE(TRIM(SYSDATE),
+                                           V_CURR_WEEK,
+                                           V_CURR_MONTH,
+                                           V_CURR_QTR);
+
+
+  SELECT count(week_id)
+    INTO V_CNT
+    FROM WSR_CALENDAR
+  
+    where to_char(to_date(I_DATE, 'DD/MM/YYYY'), 'mm') = month;
+
+  select SUBSTR(TO_CHAR(TO_DATE(I_DATE, 'DD/MM/YYYY'), 'MONTH'), 1, 3)
+    into v_month
+    from dual;
+
+  /* SELECT TO_CHAR(dat,'MON-RRRR'),COUNT(*) INTO V_M,V_CNT FROM
+  (SELECT TRUNC((TO_DATE(I_DATE,'DD/MON/RRRR')),'MM') + level - 1 dat FROM dual
+  connect by level <=LAST_DAY(TRUNC(TO_DATE(I_DATE,'DD/MON/RRRR'))) - TRUNC((TO_DATE(I_DATE,'DD/MON/RRRR')),'MM') + 1) 
+  WHERE TO_CHAR(dat,'DY') = 'SUN' GROUP BY TO_CHAR(dat,'MON-RRRR');*/
+
+  IF V_CNT = 5 THEN
+    V_COND_2 := ' IN (1,2,3,4,5)';
+  ELSIF V_CNT = 4 THEN
+    V_COND_2 := ' IN (1,2,3,4)';
+  END IF;
+  /* ELSIF V_CNT = 3 THEN 
+    V_COND_2 := ' IN (1,2,3)';
+     ELSIF V_CNT = 2 THEN 
+    V_COND_2 := ' IN (1,2)';
+     ELSIF V_CNT = 1 THEN 
+    V_COND_2 := ' IN (1)';
+    
+  END IF;*/
+
+  /*  QRY_1 := 'SELECT * FROM
+  (SELECT PERIOD,ROWNUM RN FROM (SELECT TO_CHAR(FILE_DATE,''DD-MON-YYYY'') PERIOD FROM
+  (select distinct file_date  FROM WKLY_REP_FRZ_UNFRZ_BTG  WHERE
+          SUBSTR(FILE_DATE,4,3) in (SELECT  upper(SUBSTR(''' ||
+             I_DATE || ''',4,3)) from dual)
+          ORDER BY FILE_DATE)))
+          PIVOT(MAX(PERIOD) FOR RN' || V_COND_2 || ')';*/
+
+  QRY_1 := 'SELECT *  FROM (SELECT FILE_DATE,ROWNUM RN FROM
+  (SELECT FILE_DATE FROM (SELECT DISTINCT  FILE_DATE,WEEK_ID 
+ FROM  WSR_CALENDAR where 
+to_char(to_date(''' || I_DATE || ''',''DD/MM/YYYY''),''mm'') = month ) ORDER BY WEEK_ID)) PIVOT(MAX(FILE_DATE)
+ FOR RN ' || V_COND_2 || ')';
+
+  IF V_CNT = 5 THEN
+    OPEN V_CUR_1 FOR QRY_1;
+  
+    LOOP
+      FETCH V_CUR_1
+        INTO V_DATE_1, V_DATE_2, V_DATE_3, V_DATE_4, V_DATE_5;
+      EXIT WHEN V_CUR_1% NOTFOUND;
+    
+    END LOOP;
+    CLOSE V_CUR_1;
+  ELSIF V_CNT = 4 THEN
+  
+    OPEN V_CUR_1 FOR QRY_1;
+  
+    LOOP
+      FETCH V_CUR_1
+        INTO V_DATE_1, V_DATE_2, V_DATE_3, V_DATE_4;
+    
+      EXIT WHEN V_CUR_1% NOTFOUND;
+    
+    END LOOP;
+    CLOSE V_CUR_1;
+  END IF;
+
+  SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_1, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                 'dd-Mon-YYYY') AS PREV_THURSDAY
+    INTO V_DATE_11
+    FROM DUAL;
+
+  SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_2, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                 'dd-Mon-YYYY') AS PREV_THURSDAY
+    INTO V_DATE_12
+    FROM DUAL;
+
+  SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_3, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                 'dd-Mon-YYYY') AS PREV_THURSDAY
+    INTO V_DATE_13
+    FROM DUAL;
+  SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_4, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                 'dd-Mon-YYYY') AS PREV_THURSDAY
+    INTO V_DATE_14
+    FROM DUAL;
+  SELECT TO_CHAR(TRUNC(TO_DATE(V_DATE_5, 'DD-MON-RR')) + INTERVAL '7' DAY,
+                 'dd-Mon-YYYY') AS PREV_THURSDAY
+    INTO V_DATE_15
+    FROM DUAL;
+
+  IF V_CNT = 5 THEN
+  
+    V_COND := 'LEFT OUTER JOIN (SELECT DISTINCT ACCOUNT_ID,CASE 
+ when M_FREEZE_FLAG = ''Y'' AND FREEZED_DATE >= ''' ||
+              V_DATE_13 || ''' THEN   ''C''
+   WHEN M_FREEZE_FLAG = ''Y'' THEN ''Y''
+     WHEN M_FREEZE_FLAG = ''N'' THEN ''N'' END M_FREEZE_FLAG
+
+ FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_5 ||
+              ''') s
+  
+  
+  on k.account_id = s.account_id ';
+  
+    V_COND_1 := ',s.m_freeze_flag week5';
+  
+  ELSIF V_CNT = 4 THEN
+    V_COND := '';
+  
+    V_COND_1 := '';
+  END IF;
+
+  SELECT WEEK_START, WEEK_END
+    INTO V_FIRST_1, V_LAST_1
+    FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+            FROM WSR_CALENDAR
+           where to_char(to_date(I_DATE, 'DD/MM/YYYY'), 'mm') = month)
+   WHERE WEEK_ID = 1;
+
+  SELECT WEEK_START, WEEK_END
+    INTO V_FIRST_2, V_LAST_2
+    FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+            FROM WSR_CALENDAR
+           where to_char(to_date(I_DATE, 'DD/MM/YYYY'), 'mm') = month)
+   WHERE WEEK_ID = 2;
+
+  SELECT WEEK_START, WEEK_END
+    INTO V_FIRST_3, V_LAST_3
+    FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+            FROM WSR_CALENDAR
+           where to_char(to_date(I_DATE, 'DD/MM/YYYY'), 'mm') = month)
+   WHERE WEEK_ID = 3;
+
+  SELECT WEEK_START, WEEK_END
+    INTO V_FIRST_4, V_LAST_4
+    FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+            FROM WSR_CALENDAR
+           where to_char(to_date(I_DATE, 'DD/MM/YYYY'), 'mm') = month)
+   WHERE WEEK_ID = 4;
+
+  IF V_CNT = 5 THEN
+  
+    SELECT WEEK_START, WEEK_END
+      INTO V_FIRST_5, V_LAST_5
+      FROM (SELECT WEEK_START, WEEK_END, WEEK_ID
+              FROM WSR_CALENDAR
+             where to_char(to_date(I_DATE, 'DD/MM/YYYY'), 'mm') = month)
+     WHERE WEEK_ID = 5;
+  END IF;
+
+  IF V_CNT = 5 THEN
+  
+    V_COND_4 := '
+      UNION ALL
+      SELECT '''||'WEEK5('||CHR(13)|| SUBSTR(V_FIRST_5,1,6) || ' TO ' || SUBSTR(V_LAST_5,1,6) ||')'|| '''
+        FROM DUAL';
+  ELSIF V_CNT = 4 THEN
+  
+    V_COND_4 := '';
+  END IF;
+  QRY := ' select ''ACCOUNT''
+        FROM DUAL
+      union all
+      select ''ACCOUNT NAME''
+        FROM DUAL
+      
+      UNION ALL
+      SELECT  '''||'WEEK1('|| SUBSTR(V_FIRST_1,1,6) || ' TO ' || SUBSTR(V_LAST_1,1,6) ||')'||'''
+        FROM DUAL 
+        UNION ALL
+        SELECT  '''||'WEEK2('|| SUBSTR(V_FIRST_2,1,6) || ' TO ' || SUBSTR(V_LAST_2,1,6) ||')'|| '''
+        FROM DUAL 
+        UNION ALL
+        SELECT ''' ||'WEEK3('|| SUBSTR(V_FIRST_3,1,6) || ' TO ' || SUBSTR(V_LAST_3,1,6) ||')'|| '''
+        FROM DUAL 
+        UNION ALL
+        SELECT ''' ||'WEEK4('|| SUBSTR(V_FIRST_4,1,6) || ' TO ' || SUBSTR(V_LAST_4,1,6) ||')'|| '''
+        FROM DUAL 
+       ' || V_COND_4 || '';
+
+  delete from Sd_dummy;
+  insert into Sd_dummy values (qry);
+  commit;
+  OPEN O_HEADER FOR QRY;
+
+  QRY := '
+
+select distinct  K.ACCOUNT_ID,k.short_name,a.m_freeze_flag week1,b.m_freeze_flag week2 ,d.m_freeze_flag week3,
+f.m_freeze_flag week4
+
+
+
+ ' || V_COND_1 ||
+         ' from 
+new_btg_account_mapping k
+left outer   join 
+(SELECT DISTINCT ACCOUNT_ID,CASE 
+ when M_FREEZE_FLAG = ''Y'' AND FREEZED_DATE >= ''' || V_DATE_11 ||
+         ''' THEN   ''C''
+   WHEN M_FREEZE_FLAG = ''Y'' THEN ''Y''
+     WHEN M_FREEZE_FLAG = ''N'' THEN ''N'' END M_FREEZE_FLAG
+
+ FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE 
+  T.FILE_DATE = ''' || V_DATE_1 ||
+         ''') a on 
+  a.account_id = k.account_id
+  
+  left outer join 
+  
+(SELECT DISTINCT ACCOUNT_ID,CASE 
+ when M_FREEZE_FLAG = ''Y'' AND FREEZED_DATE >= ''' || V_DATE_12 ||
+         ''' THEN   ''C''
+   WHEN M_FREEZE_FLAG = ''Y'' THEN ''Y''
+     WHEN M_FREEZE_FLAG = ''N'' THEN ''N'' END M_FREEZE_FLAG
+
+ FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE   T.FILE_DATE = ''' ||
+         V_DATE_2 || ''' ) b
+   on k.account_id = b.account_id
+   left outer join 
+(SELECT DISTINCT ACCOUNT_ID,CASE 
+ when M_FREEZE_FLAG = ''Y'' AND FREEZED_DATE >= ''' || V_DATE_13 ||
+         ''' THEN   ''C''
+   WHEN M_FREEZE_FLAG = ''Y'' THEN ''Y''
+     WHEN M_FREEZE_FLAG = ''N'' THEN ''N'' END M_FREEZE_FLAG
+
+ FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE   T.FILE_DATE = ''' ||
+         V_DATE_3 || ''') d
+  on k.account_id = d.account_id
+  left outer join 
+(SELECT DISTINCT ACCOUNT_ID,CASE 
+ when M_FREEZE_FLAG = ''Y'' AND FREEZED_DATE >= ''' || V_DATE_14 ||
+         ''' THEN   ''C''
+   WHEN M_FREEZE_FLAG = ''Y'' THEN ''Y''
+     WHEN M_FREEZE_FLAG = ''N'' THEN ''N'' END M_FREEZE_FLAG
+
+ FROM WKLY_REP_FRZ_UNFRZ_BTG T WHERE   T.FILE_DATE = ''' ||
+         V_DATE_14 || ''') f 
+  ON  k.account_id = F.account_id
+  
+  ' || V_COND || '
+  
+ 
+  order by short_name';
+
+  delete from hd_dummy;
+  insert into hd_dummy values (qry);
+  commit;
+
+  OPEN O_DATA FOR QRY;
+
+  --O_VAR_DATA:='WSR Status Dashboard for the week of '||V_LAST_WEEK||' to '||V_SYS_DATE||'';
+  O_VAR_DATA := 'WSR Status Dashboard for the month of ' || v_month || '';
+
+end SP_WKLY_MONTHLY_GRID_BTG;
 
 PROCEDURE SP_WEEKLY_REPORT_HC(I_EMP_ID        IN NUMBER,
                                 I_CORP_ID       IN NUMBER,
@@ -14932,6 +18089,16 @@ BEGIN
   select substr(fn_fetch_qtr(V_PERIOD), 2, 1) into O_TCV_COL from dual;
 
 END SP_WEEKLY_REPORT_HC;
+
+
+procedure SP_IOU (O_IOU OUT SYS_REFCURSOR) IS
+  BEGIN 
+    OPEN O_IOU FOR 
+    SELECT 0 from dual
+    union all
+    select distinct iou_id from new_btg_account_mapping  order by 1 ;
+    end  sp_iou;
+  
 
 -----------------------
 
